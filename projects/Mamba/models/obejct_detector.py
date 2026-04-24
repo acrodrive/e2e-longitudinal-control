@@ -20,12 +20,16 @@ class ObjectDetector(nn.Module):
 
         self.resampler = VisualResampler(
             num_queries=128,
-            embed_dim=256
+            embed_dim=256,
+            num_heads=8
             )
 
         self.encoder = VisualTransformerEncoder(
             d_model=256,
             nhead=8,
+            num_layers=6,
+            dim_feedforward=1024,
+            dropout=0.1,
             batch_first=True
             )
 
@@ -33,7 +37,9 @@ class ObjectDetector(nn.Module):
             num_queries=config.num_queries,
             d_model=256,
             nhead=8,
-            num_layers=6
+            num_layers=6,
+            dim_feedforward=1024,
+            dropout=0.1
             )
         
         self.heads = DetectionHead(

@@ -55,16 +55,19 @@ def validate(model, val_loader, device, config):
 def main():
     
     config = Config()
-    #device = torch.device(config.device)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(config.device)
 
+    # 1. 모델 아키텍처 불러오기
     model = ObjectDetector(config).to(device)
 
+    # 2. 학습 데이터셋 기본 설정
     train_dataset = BDD100KDataset(
         root=config.data_root,
         ann_file=config.train_ann,
         transform=get_train_transforms(config.img_size)
         )
+
+    # 3. 실제 학습 데이터셋 (input_image, 정답 레이블)
     train_loader = DataLoader(
         train_dataset, 
         batch_size=config.batch_size, 
@@ -78,6 +81,7 @@ def main():
         ann_file=config.val_ann, 
         transform=get_val_transforms(config.img_size) # 검증용 증강(Resize만 수행)
         )
+
     val_loader = DataLoader(
         val_dataset, 
         batch_size=config.batch_size, 
@@ -86,7 +90,7 @@ def main():
         collate_fn=collate_fn
         )
 
-    matcher = HungarianMatcher(cost_class=config.cost_class, cost_bbox=config.cost_bbox)
+    matcher = HungarianMatcher(cost_class=config.cost_class, cost_bbox=config.cost_bbox) ########################## 이 인자가 뭐지?
     criterion = DetectionLoss(num_classes=config.num_classes, matcher=matcher).to(device)
 
     optimizer, scheduler = get_optimizer()
@@ -98,6 +102,7 @@ def main():
         scheduler.step() # 에폭 끝날 때마다 스케줄러 업데이트
 
         # 여기에 검증(Validation) 및 체크포인트 저장 로직을 추가해야 함"""
+    
     best_map = 0.0  # 최고 성적 기록용
     save_dir = f"./checkpoints/{config.exp_name}"
     os.makedirs(save_dir, exist_ok=True)
