@@ -25,12 +25,13 @@ RUN pip install --no-cache-dir \
     "torchvision" \
     "matplotlib"
 
-# 5. 소스 코드 복사 (현재 경로의 파일들을 컨테이너 내부로)
-COPY . .
-
 # 6. PYTHONPATH 설정 (프로젝트 루트를 모듈 경로에 추가)
 ENV PYTHONPATH="/workspace"
 
 # 7. 실행 명령 (train.py 위치에 맞춰 경로 수정 필요 가능)
 CMD ["/bin/bash"]
-#CMD ["python", "projects/CNN_Mamba_MLP/train.py"]
+#CMD ["python", "projects/CNN/train.py"]
+
+# docker image build D:\Docker\CNN -t cnn:latest
+# docker run -it --name CNN --gpus all --shm-size=8g cnn:latest
+# docker docker start -ai CNN
