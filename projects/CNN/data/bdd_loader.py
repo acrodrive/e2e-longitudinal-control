@@ -14,6 +14,8 @@ class BDDDataset(Dataset):
         self.num_classes = num_classes
         self.max_retries = int(max_retries)
         self.strides = [8, 16, 32]  # P3, P4, P5 stride
+        self.num_images = 0
+        self.num_dropped_images = 0
         
         # BDD100K 클래스 매핑 (아래는 임의의 순서로 추후 변경이 필요한 경우 변경할 것)
         self.cat_to_id = {
@@ -92,34 +94,27 @@ class BDDDataset(Dataset):
     def __getitem__(self, idx): #idx는 데이터셋 전체 중에서 n번째 사진
         last_err = None
         
-        for attempt in range(max(1, self.max_retries)):
-            # __getitem__의 입력 파라미터인 idx번째 영상을 찾을 수 없거나 영상 또는 GT에 문제가 있는 경우에는 포기하고 바로 다음 영상을 찾도록 함.
-            # 만약에 영상 정보가 연속적으로 계속 존재하지 않는다면(idx번째부터 idx + max_retries번째까지) for-else의 else로 가서 에러 송출
-            j = (idx + attempt) % len(self.data)
-            item = self.data[j]
+        try:
+            item = self.data[idx]
 
             #영상의 파일명을 가져옴
             name = item.get('name')
             if not name:
-                last_err = KeyError(f"Missing 'name' field in annotation at index {j}.")
-                continue
+                raise KeyError(f"Missing 'name' field in annotation at index {idx}.")
 
             img_path = os.path.join(self.img_dir, name)
-            try:
-                image = self._read_image_rgb(img_path)
-            except Exception as e:
-                last_err = e
-                continue
+
+            image = self._read_image_rgb(img_path)
 
             if image.ndim != 3 or image.shape[2] != 3:
-                last_err = ValueError(f"Unexpected image shape {getattr(image, 'shape', None)} for {img_path}")
-                continue
+                raise ValueError(f"Unexpected image shape {getattr(image, 'shape', None)} for {img_path}")
 
             H, W, _ = image.shape
             
             if H <= 0 or W <= 0:
-                last_err = ValueError(f"Invalid image size (H={H}, W={W}) for {img_path}")
-                continue
+                raise ValueError(f"Invalid image size (H={H}, W={W}) for {img_path}")
+
+            self.num_images += 1
 
             bboxes = []
             class_labels = []
@@ -141,12 +136,10 @@ class BDDDataset(Dataset):
                     bboxes.append([bbox_ctx_norm, bbox_cty_norm, bbox_w_norm, bbox_h_norm])
                     class_labels.append(self.cat_to_id[obj['category']])
 
-            break
-        else:
-            raise RuntimeError(
-                f"Failed to fetch a valid sample after {self.max_retries} attempts starting at idx={idx}. "
-                f"Last error: {last_err}"
-            )
+        except Exception as e:
+            print(f"Error at index {idx}: {e}")
+            self.num_dropped_images += 1
+            return None
         
         # Extraction of bbox and class in the json file.
 
@@ -190,7 +183,7 @@ class BDDDataset(Dataset):
                 if not (current_ratio_range[0] <= scale_in_feature_map < current_ratio_range[1]):
                     continue
 
-                cls_id = class_labels[i]
+                cls_id = int(class_labels[i]) # The class_labels[i] possibly appear the type of like numpy.int32
                 
                 radius = self._gaussian_radius((aug_h, aug_w)) # 원본 픽셀 기준
                 radius = max(1, int(radius)) # P5의 경우 반지름을 1 이상으로 설정해야 할 수도 있음

@@ -79,6 +79,9 @@ class MultiLevelDetectionLoss(nn.Module):
                 reg_loss = generalized_box_iou_loss(p_boxes, t_boxes, reduction='mean')
                 total_reg_loss += reg_loss
 
+
+        print(f"Class loss : {total_cls_loss}, regression loss: {total_reg_loss}")
+
         return (total_cls_loss + self.lambda_ * total_reg_loss) / 3.0 # 주의: 학습 초기의 cls loss와 reg loss를 비교하면서 lambda_ 약간 조절하기
 
 

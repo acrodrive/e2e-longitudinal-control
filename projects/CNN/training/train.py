@@ -5,17 +5,18 @@ import torch.optim as optim
 from torch import amp
 from torch.utils.data import DataLoader
 
-from projects.CNN_Mamba_MLP.config import Config
-from projects.CNN_Mamba_MLP.models.resnet_fpn import ResNetFPN
-from projects.CNN_Mamba_MLP.models.head import DetectionHead
-from projects.CNN_Mamba_MLP.models.loss import MultiLevelDetectionLoss
-from projects.CNN_Mamba_MLP.data.bdd_loader import BDDDataset
-from projects.CNN_Mamba_MLP.data.augmentation import get_train_transforms
+from projects.CNN.config import Config
+from projects.CNN.models.resnet_fpn import ResNetFPN
+from projects.CNN.models.head import DetectionHead
+from projects.CNN.models.loss import MultiLevelDetectionLoss
+from projects.CNN.data.bdd_loader import BDDDataset
+from projects.CNN.data.augmentation import get_train_transforms
 
-def save_checkpoint(state, epoch, folder="models"):
+def save_checkpoint(state, epoch, folder="checkpoints"):
     if not os.path.exists(folder):
         os.makedirs(folder)
-    
+
+    # TODO: Include architecture name and timestamp in the filename.
     filename = os.path.join(folder, f"checkpoint_epoch_{epoch}.pth.tar")
     torch.save(state, filename)
     
@@ -42,6 +43,14 @@ def load_model_weights(backbone, head, optimizer, scaler, checkpoint_path):
     else:
         print("=> No checkpoint found. Starting from pre-trained backbone.")
     return start_epoch
+
+def collate_fn(batch):
+    batch = list(filter(lambda x: x is not None, batch))
+
+    if len(batch) == 0:
+        return None
+    
+    return torch.utils.data.dataloader.default_collate(batch)
 
 def main():
     device = Config.device
@@ -79,15 +88,14 @@ def main():
     #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     
     # CUDA일 때만 GradScaler 활성화
-    scaler = amp.GradScaler() if is_cuda else None
-
+    scaler = torch.cuda.amp.GradScaler() if is_cuda else None
     # 3. 가중치 로드
     start_epoch = load_model_weights(backbone, head, optimizer, scaler, CHECKPOINT_PATH)
 
     # 4. 데이터 준비
     train_transform = get_train_transforms()
     train_dataset = BDDDataset(json_path=JSON_PATH, img_dir=IMG_DIR, transform=train_transform, num_classes=num_classes)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn)
 
     print(f"Starting training on {device} (FP16: {is_cuda})...")
 
@@ -96,14 +104,17 @@ def main():
         head.train()
         epoch_loss = 0.0
         
-        for i, (imgs, targets_dict) in enumerate(train_loader):
+        for i, batch in enumerate(train_loader): # i = 0 to 17465, batch: image and GT
+            if batch is None:
+                continue
+            imgs, targets_dict = batch
             imgs = imgs.to(device)
             targets_dict = {k: v.to(device) for k, v in targets_dict.items()}
             
             optimizer.zero_grad()
             
             if is_cuda:
-                with amp.autocast():
+                with amp.autocast(device_type=device.type):
                     p3, p4, p5 = backbone(imgs)
                     preds = head(p3, p4, p5)
                     loss = criterion(preds, targets_dict)
@@ -124,6 +135,9 @@ def main():
             
             if i % 10 == 0:
                 print(f"Epoch [{epoch}/{epochs}] Batch [{i}/{len(train_loader)}] Loss: {loss.item():.4f}")
+                print(f"Number of images in the dataset: {train_dataset.num_images}")
+                print(f"Number of Dropped images in the dataset: {train_dataset.num_dropped_images}")
+
         
         #scheduler.step() 
         #current_lr = optimizer.param_groups[0]['lr']

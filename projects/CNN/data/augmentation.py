@@ -1,6 +1,6 @@
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from projects.CNN_Mamba_MLP.config import Config
+from projects.CNN.config import Config
 
 def get_train_transforms(img_size=(1280, 720)):
     return A.Compose([
