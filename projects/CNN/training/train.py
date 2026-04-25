@@ -95,7 +95,7 @@ def main():
     # 4. 데이터 준비
     train_transform = get_train_transforms()
     train_dataset = BDDDataset(json_path=JSON_PATH, img_dir=IMG_DIR, transform=train_transform, num_classes=num_classes)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=is_cuda, collate_fn=collate_fn)
 
     print(f"Starting training on {device} (FP16: {is_cuda})...")
 
