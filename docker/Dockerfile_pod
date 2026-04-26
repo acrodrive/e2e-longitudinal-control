@@ -1,0 +1,34 @@
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN git clone https://github.com/acrodrive/e2e-longitudinal-control.git /app
+
+# numpy < 2.0 due to nuscenes-devkit
+RUN pip install --no-cache-dir \
+    "numpy>=1.23.5,<2.0" \ 
+    "albumentations>=1.3.1" \
+    "opencv-python-headless" \
+    #"nuscenes-devkit" \
+    "torchvision" \
+    "matplotlib"
+
+ENV PYTHONPATH="/app"
+
+# vscode-ssh start
+RUN apt-get update && apt-get install -y \
+	openssh-server \
+	&& mkdir /var/run/sshd
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+EXPOSE 22
+# vscode-ssh end
+
+CMD bash -c "mkdir -p /root/.ssh && echo \"\$PUBLIC_KEY\" > /root/.ssh/authorized_keys && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys && /usr/sbin/sshd -D"

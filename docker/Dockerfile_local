@@ -1,0 +1,30 @@
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+RUN git clone https://github.com/acrodrive/e2e-longitudinal-control.git /workspace
+
+# numpy < 2.0 due to nuscenes-devkit
+RUN pip install --no-cache-dir \
+    "numpy>=1.23.5,<2.0" \ 
+    "albumentations>=1.3.1" \
+    "opencv-python-headless" \
+    #"nuscenes-devkit" \
+    "torchvision" \
+    "matplotlib"
+
+ENV PYTHONPATH="/workspace"
+
+CMD ["/bin/bash"]
+
+# docker image build D:\Docker\CNN\docker -t cnn:v0
+# docker run -it --name CNN --gpus all --shm-size=8g cnn:v0
+# docker docker start -ai CNN
