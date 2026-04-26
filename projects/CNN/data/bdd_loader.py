@@ -4,6 +4,7 @@ import json
 import cv2
 import numpy as np
 import os
+import math
 
 class BDDDataset(Dataset):
     def __init__(self, json_path, img_dir, transform=None, num_classes=10, max_retries=20):
@@ -163,7 +164,7 @@ class BDDDataset(Dataset):
         # Generate Gaussian Distribution of Ground Truth on the feature maps.
         for s in self.strides:
             _, H, W = image.shape
-            h_f, w_f = H // s, W // s # 40, 22 respectively for stride 32
+            h_f, w_f = math.ceil(H / s), math.ceil(W / s)
 
             hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
             regs = np.zeros((4, h_f, w_f), dtype=np.float32)

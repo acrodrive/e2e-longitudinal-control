@@ -38,6 +38,9 @@ class MultiLevelDetectionLoss(nn.Module):
             pos_mask = (gt_hm == 1.0).float()
             neg_mask = (gt_hm < 1.0).float()
 
+            print(f"pred_hm shape: {pred_hm.shape}")
+            print(f"pos_mask shape: {pos_mask.shape}")
+
             pos_loss = torch.log(pred_hm) * torch.pow(1 - pred_hm, self.alpha) * pos_mask
             neg_loss = torch.log(1 - pred_hm) * torch.pow(pred_hm, self.alpha) * torch.pow(1 - gt_hm, self.beta) * neg_mask
             
