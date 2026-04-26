@@ -103,7 +103,20 @@ class BDDDataset(Dataset):
             if not name:
                 raise KeyError(f"Missing 'name' field in annotation at index {idx}.")
 
-            img_path = os.path.join(self.img_dir, name)
+            img_path = None
+            img_paths = []
+
+            img_paths.append(os.path.join(self.img_dir, name))
+            img_paths.append(os.path.join(self.img_dir, "trainA", name))
+            img_paths.append(os.path.join(self.img_dir, "trainB", name))
+
+            for candidate in img_paths:
+                if os.path.exists(candidate):
+                    img_path = candidate
+                    break
+
+            if not img_path:
+                raise FileNotFoundError(f"Image not found for any candidate paths: {img_paths}")
 
             image = self._read_image_rgb(img_path)
 
