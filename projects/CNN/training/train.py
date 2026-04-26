@@ -83,8 +83,17 @@ def main():
     criterion = MultiLevelDetectionLoss().to(device)
     
     # 2. 옵티마이저 및 FP16 스케일러
-    all_params = list(backbone.parameters()) + list(head.parameters())
-    optimizer = optim.AdamW(all_params, lr=lr, weight_decay=weight_decay)
+    # all_params = list(backbone.parameters()) + list(head.parameters())
+    # optimizer = optim.AdamW(all_params, lr=lr, weight_decay=weight_decay)
+
+    backbone_lr = lr * 0.1
+    head_lr = lr
+
+    optimizer = torch.optim.AdamW([
+        {'params': backbone.parameters(), 'lr': backbone_lr},
+        {'params': head.parameters(), 'lr': head_lr}
+    ], weight_decay=weight_decay)
+    
     #scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     
     # CUDA일 때만 GradScaler 활성화
@@ -133,10 +142,11 @@ def main():
             
             epoch_loss += loss.item()
             
-            if i % 10 == 0:
+            if i % 10 == 0 and i != 0:
+                print("### PROCESS CHECK ###")
                 print(f"Epoch [{epoch}/{epochs}] Batch [{i}/{len(train_loader)}] Loss: {loss.item():.4f}")
-                print(f"Number of images in the dataset: {train_dataset.num_images}")
-                print(f"Number of Dropped images in the dataset: {train_dataset.num_dropped_images}")
+                # print(f"Number of images in the dataset: {train_dataset.num_images}")
+                # print(f"Number of Dropped images in the dataset: {train_dataset.num_dropped_images}")
 
         
         #scheduler.step() 

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 class DetectionHead(nn.Module):
     def __init__(self, num_classes, fpn_channels=256):
@@ -14,6 +15,19 @@ class DetectionHead(nn.Module):
         self.reg_p3 = self._make_head(fpn_channels, 4)
         self.reg_p4 = self._make_head(fpn_channels, 4)
         self.reg_p5 = self._make_head(fpn_channels, 4)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.normal_(m.weight, std=0.01)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+        prob = 0.01
+        bias_value = -math.log((1 - prob) / prob)
+
+        nn.init.constant_(self.cls_p3[-1].bias, bias_value)
+        nn.init.constant_(self.cls_p4[-1].bias, bias_value)
+        nn.init.constant_(self.cls_p5[-1].bias, bias_value)
 
         """
         # 2차 마일스톤: Mamba Tokenizer 관련 (나중에 활성화)
@@ -31,9 +45,9 @@ class DetectionHead(nn.Module):
 
     def forward(self, p3, p4, p5, boxes_gt=None, class_onehot_gt=None):
         # 1차 마일스톤: 독립 헤드를 통한 예측
-        out_p3 = (torch.sigmoid(self.cls_p3(p3)), self.reg_p3(p3))
-        out_p4 = (torch.sigmoid(self.cls_p4(p4)), self.reg_p4(p4))
-        out_p5 = (torch.sigmoid(self.cls_p5(p5)), self.reg_p5(p5))
+        out_p3 = (torch.sigmoid(self.cls_p3(p3)), torch.sigmoid(self.reg_p3(p3)))
+        out_p4 = (torch.sigmoid(self.cls_p4(p4)), torch.sigmoid(self.reg_p4(p4)))
+        out_p5 = (torch.sigmoid(self.cls_p5(p5)), torch.sigmoid(self.reg_p5(p5)))
 
         """
         # 2차 마일스톤 시 활성화: Mamba 입력 토큰 생성 (예: P4 기준)

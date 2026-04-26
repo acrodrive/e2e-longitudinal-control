@@ -116,7 +116,7 @@ class BDDDataset(Dataset):
                     break
 
             if not img_path:
-                raise FileNotFoundError(f"Image not found for any candidate paths: {img_paths}")
+                raise FileNotFoundError(f"{name} not found. This image is possibly in test data folder.")
 
             image = self._read_image_rgb(img_path)
 
