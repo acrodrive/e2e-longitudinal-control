@@ -218,3 +218,7 @@ class BDDDataset(Dataset):
             results[f'mask_s{s}'] = torch.from_numpy(mask)
 
         return image, results
+    
+# hm (Heatmap)	[B, num_classes, H_f, W_f]	각 클래스별 중심점 확률 맵
+# reg (Regression)	[B, 4, H_f, W_f]	[w, h, offset_x, offset_y] 4가지 정보
+# mask (Loss Mask)	[B, 1, H_f, W_f]	객체 중심점 위치 표시 (0 또는 1)

@@ -1,8 +1,7 @@
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from projects.CNN.config import Config
 
-def get_train_transforms(img_size=(1280, 720)):
+def get_train_transforms(img_size=(1280, 720), bbox_format='yolo'):
     return A.Compose([
         # 1. 기하학적 변환 (박스 좌표도 함께 변환됨)
         A.HorizontalFlip(p=0.5),
@@ -20,10 +19,17 @@ def get_train_transforms(img_size=(1280, 720)):
         # 3. 정규화 및 텐서 변환
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ToTensorV2(),
-    ], bbox_params=A.BboxParams(format=Config.bbox_format, label_fields=['class_labels'], clip=True, min_visibility=0.3))
+    ], bbox_params=A.BboxParams(format=bbox_format, label_fields=['class_labels'], clip=True, min_visibility=0.3))
 
-def get_val_transforms():
+def get_val_transforms(bbox_format='yolo'):
     return A.Compose([
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ToTensorV2(),
-    ], bbox_params=A.BboxParams(format=Config.bbox_format, label_fields=['class_labels'], clip=True, min_visibility=0.3))
+    ], bbox_params=A.BboxParams(format=bbox_format, label_fields=['class_labels'], clip=True, min_visibility=0.3))
+
+def get_inference_transforms():
+    return A.Compose([
+        # 모델 학습 시 이미지 크기를 고정했다면 여기에 A.Resize(height, width) 추가 권장
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),
+    ])
