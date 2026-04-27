@@ -1,68 +1,66 @@
-import os
 import torch
 import cv2
 import numpy as np
-from PIL import Image
-
 from projects.CNN.config import Config
 from lib.models.resnet_fpn import ResNetFPN
 from lib.models.head import DetectionHead
-from lib.data.augmentation import get_inference_transforms # 혹은 별도의 val_transforms
+from lib.data.augmentation import get_inference_transforms
+from lib.utils.utils import post_process
+from visualize import draw_detections
 
-def load_inference_model(checkpoint_path, device):
-    # 1. 모델 구조 정의
+def run_inference(image_path, model_path):
+    device = Config.device
+    class_names = [
+        'pedestrian', 'rider', 'bike', 'motor', 'car', 
+        'bus', 'truck', 'traffic light', 'traffic sign', 'train'
+    ]
+    strides = [8, 16, 32]
+
+    # 1. 모델 로드
     backbone = ResNetFPN(out_channels=Config.fpn_out_channels).to(device)
     head = DetectionHead(num_classes=Config.num_classes).to(device)
     
-    # 2. 가중치 로드
-    print(f"=> Loading weights from: {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device)
+    # torch.compile을 사용했다면 키 이름에 '_orig_mod.'가 붙을 수 있으므로 처리
+    backbone_state = {k.replace('_orig_mod.', ''): v for k, v in checkpoint['backbone_state_dict'].items()}
+    head_state = {k.replace('_orig_mod.', ''): v for k, v in checkpoint['head_state_dict'].items()}
     
-    # train.py 저장 방식에 맞춰 key 로드
-    backbone.load_state_dict(checkpoint['backbone_state_dict'])
-    head.load_state_dict(checkpoint['head_state_dict'])
-    
+    backbone.load_state_dict(backbone_state)
+    head.load_state_dict(head_state)
     backbone.eval()
     head.eval()
-    return backbone, head
 
-@torch.no_grad()
-def run_inference(image_path, backbone, head, transform, device):
-    # 이미지 로드 및 전처리
-    image = Image.open(image_path).convert("RGB")
-    # transform은 [C, H, W] 형태의 Tensor를 반환해야 함
-    input_tensor = transform(image).unsqueeze(0).to(device) 
+    # 2. 이미지 준비
+    orig_img = cv2.imread(image_path)
+    orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB)
     
-    # 추론
-    p3, p4, p5 = backbone(input_tensor)
-    predictions = head(p3, p4, p5)
-    
-    return predictions
+    transform = get_inference_transforms()
+    # transform은 이미지 크기 조정을 포함하지 않으므로 필요시 Resize 추가 가능
+    input_tensor = transform(image=orig_img)['image'].unsqueeze(0).to(device)
 
-def main():
-    device = Config.device
-    checkpoint_path = os.path.join("checkpoints", "last_model.pth.tar")
-    image_path = "test_image.jpg" # 추론할 이미지 경로
-    
-    if not os.path.exists(checkpoint_path):
-        print("Checkpoint not found!")
-        return
+    # 3. 추론
+    with torch.no_grad():
+        p3, p4, p5 = backbone(input_tensor)
+        preds = head(p3, p4, p5)
+        
+        pred_hms = [p[0] for p in preds]
+        pred_regs = [p[1] for p in preds]
 
-    # 1. 모델 준비
-    backbone, head = load_inference_model(checkpoint_path, device)
-    
-    # 2. 전처리 (학습 때와 동일한 정규화 적용 권장)
-    transform = get_inference_transforms() 
+    # 4. 후처리 (Decoding)
+    detections = post_process(pred_hms, pred_regs, strides, threshold=0.3)
 
-    # 3. 추론 실행
-    preds = run_inference(image_path, backbone, head, transform, device)
+    # 5. 시각화
+    vis_result = draw_detections(orig_img, detections, class_names)
     
-    # 4. 결과 해석 (Post-processing)
-    # DetectionHead의 출력 구조에 따라 NMS(Non-Maximum Suppression) 등이 필요할 수 있습니다.
-    print("Inference complete.")
-    print(f"Output shape example: {preds[0].shape if isinstance(preds, list) else preds.shape}")
-    
-    # 그림 그리고 이미지 저장까지 하자
+    # 결과 출력 및 저장
+    cv2.imshow("Inference Result", vis_result)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    cv2.imwrite("result.jpg", vis_result)
 
 if __name__ == "__main__":
-    main()
+    # 실행 전 체크포인트 경로와 이미지 경로 수정 필요
+    MODEL_PATH = "checkpoints/last_model.pth.tar" 
+    TEST_IMAGE = "data/archive/bdd100k/bdd100k/images/100k/train/0000f77c-62c2a288.jpg"
+    
+    run_inference(TEST_IMAGE, MODEL_PATH)
