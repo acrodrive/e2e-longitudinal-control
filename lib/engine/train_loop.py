@@ -88,11 +88,13 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
         #if i % 10 == 0 and i != 0:
         #    print(f"Epoch [{epoch}/{epochs}] Batch [{i}/{len(loader)}] Loss: {loss.item():.4f}")
 
-        if i % 10 == 0 and i != 0:
+        if i % 10 == 0:
             wandb.log({
                 "batch_loss": loss.item(),
                 "global_step": epoch * len(loader) + i
             })
+        if i % 100 == 0 and i != 0:
+            print(f"train process: {i}/{batch}")
 
     # 에폭이 끝나고 평균값 기록
     avg_loss = epoch_loss / len(loader)

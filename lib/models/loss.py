@@ -24,7 +24,7 @@ class MultiLevelDetectionLoss(nn.Module):
             total_num_pos += num_pos
             
             # pred_hm = torch.clamp(pred_hm, min=1e-4, max=1-1e-4)
-            pred_hm = torch.clamp(pred_hms[i], min=1e-7, max=1-1e-7)
+            pred_hm = torch.clamp(pred_hms[i], min=1e-12, max=1-1e-12)
             
             pos_masks = (gt_hms[i] == 1.0).float()
             neg_masks = (gt_hms[i] < 1.0).float()
