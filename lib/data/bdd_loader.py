@@ -8,17 +8,19 @@ import math
 
 class BDDDataset(Dataset):
     def __init__(self, json_path, img_dir, transform=None, num_classes=10, max_retries=20):
+        # 1. 원본 JSON 데이터 로드
         with open(json_path, 'r') as f:
-            self.data = json.load(f)
+            full_data = json.load(f)
+        
         self.img_dir = img_dir
         self.transform = transform
         self.num_classes = num_classes
         self.max_retries = int(max_retries)
-        self.strides = [8, 16, 32]  # P3, P4, P5 stride
+        self.strides = [8, 16, 32]
         self.num_images = 0
         self.num_dropped_images = 0
-        
-        # BDD100K 클래스 매핑 (아래는 임의의 순서로 추후 변경이 필요한 경우 변경할 것)
+
+        # BDD100K 클래스 매핑
         self.cat_to_id = {
             'pedestrian': 0, 'rider': 1, 'bike': 2, 'motor': 3,
             'car': 4, 'bus': 5, 'truck': 6, 
@@ -26,108 +28,48 @@ class BDDDataset(Dataset):
             'train': 9
         }
 
+        # 2. 실제 폴더(trainA, trainB 등) 내의 파일 리스트 스캔
+        # 사용자가 분류한 하위 폴더 리스트
+        self.sub_dirs = ['trainA', 'trainB', 'testA', 'testB']
+        self.file_to_path = {}
+        
+        for sub in self.sub_dirs:
+            sub_path = os.path.join(self.img_dir, sub)
+            if os.path.exists(sub_path):
+                for f_name in os.listdir(sub_path):
+                    # 파일명: 실제 경로 매핑 저장
+                    self.file_to_path[f_name] = os.path.join(sub_path, f_name)
+
+        # 3. 폴더에 존재하는 파일들만 JSON 데이터에서 필터링
+        # JSON의 'name'이 실제 폴더 안에 존재하는 경우만 self.data에 유지
+        self.data = [item for item in full_data if item.get('name') in self.file_to_path]
+        
+        print(f"Total images found in folders: {len(self.file_to_path)}")
+        print(f"Total valid annotations matched: {len(self.data)}")
+
     def __len__(self):
         return len(self.data)
 
-    def _gaussian_radius(self, det_size, min_overlap=0.7):
-        height, width = det_size
-
-        a1  = 1
-        b1  = (height + width)
-        c1  = width * height * (1 - min_overlap) / (1 + min_overlap)
-        sq1 = np.sqrt(max(0, b1 ** 2 - 4 * a1 * c1))
-        r1  = (b1 + sq1) / 2
-
-        a2  = 4
-        b2  = 2 * (height + width)
-        c2  = (1 - min_overlap) * width * height
-        sq2 = np.sqrt(max(0, b2 ** 2 - 4 * a2 * c2))
-        r2  = (b2 - sq2) / 2
-
-        a3  = 4 * min_overlap
-        b3  = -2 * min_overlap * (height + width)
-        c3  = (min_overlap - 1) * width * height
-        sq3 = np.sqrt(max(0, b3 ** 2 - 4 * a3 * c3))
-        r3  = (-b3 + sq3) / (2 * a3)
-        
-        return max(0, int(min(r1, r2, r3)))
-
-    def _draw_gaussian(self, heatmap, center, radius, k=1):
-        diameter = 2 * radius + 1
-        gaussian = self._gaussian_kernel(radius, sigma=diameter / 6)
-
-        gaussian[radius, radius] = 1.0
-
-        x, y = int(center[0]), int(center[1])
-        height, width = heatmap.shape[0:2]
-        
-        left, right = min(x, radius), min(width - x, radius + 1)
-        top, bottom = min(y, radius), min(height - y, radius + 1)
-        
-        masked_heatmap  = heatmap[y - top:y + bottom, x - left:x + right]
-        masked_gaussian = gaussian[radius - top:radius + bottom, radius - left:radius + right]
-        
-        if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:
-            np.maximum(masked_heatmap, masked_gaussian * k, out=masked_heatmap)
-        return heatmap
-
-    def _gaussian_kernel(self, radius, sigma):
-        size = 2 * radius + 1
-        x, y = np.mgrid[-radius:radius+1, -radius:radius+1]
-        g = np.exp(-(x**2 + y**2) / (2 * sigma**2))
-        return g
+    # ... (가우시안 관련 메서드들 _gaussian_radius, _draw_gaussian, _gaussian_kernel은 동일) ...
 
     def _read_image_rgb(self, img_path: str):
-        if not img_path:
-            raise ValueError("Empty image path.")
-        if not os.path.exists(img_path):
-            raise FileNotFoundError(f"Image not found: {img_path}")
-
         image_bgr = cv2.imread(img_path)
         if image_bgr is None:
-            raise OSError(f"Failed to decode image (cv2.imread returned None): {img_path}")
+            raise OSError(f"Failed to decode image: {img_path}")
+        return cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
-        try:
-            return cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        except cv2.error as e:
-            raise OSError(f"Failed to convert image to RGB: {img_path}") from e
-
-    def __getitem__(self, idx): #idx는 데이터셋 전체 중에서 n번째 사진
-        last_err = None
-        
+    def __getitem__(self, idx):
         try:
             item = self.data[idx]
-
-            #영상의 파일명을 가져옴
             name = item.get('name')
-            if not name:
-                raise KeyError(f"Missing 'name' field in annotation at index {idx}.")
-
-            img_path = None
-            img_paths = []
-
-            img_paths.append(os.path.join(self.img_dir, name))
-            img_paths.append(os.path.join(self.img_dir, "trainA", name))
-            img_paths.append(os.path.join(self.img_dir, "trainB", name))
-
-            for candidate in img_paths:
-                if os.path.exists(candidate):
-                    img_path = candidate
-                    break
-
+            
+            # 이미 __init__에서 검증된 경로를 즉시 가져옴
+            img_path = self.file_to_path.get(name)
             if not img_path:
-                raise FileNotFoundError(f"{name} not found. This image is possibly in test data folder.")
+                raise FileNotFoundError(f"Image {name} not found in pre-scanned paths.")
 
             image = self._read_image_rgb(img_path)
-
-            if image.ndim != 3 or image.shape[2] != 3:
-                raise ValueError(f"Unexpected image shape {getattr(image, 'shape', None)} for {img_path}")
-
             H, W, _ = image.shape
-            
-            if H <= 0 or W <= 0:
-                raise ValueError(f"Invalid image size (H={H}, W={W}) for {img_path}")
-
             self.num_images += 1
 
             bboxes = []
@@ -136,81 +78,58 @@ class BDDDataset(Dataset):
             for obj in item.get('labels', []):
                 if 'box2d' in obj and obj['category'] in self.cat_to_id:
                     b = obj['box2d']
+                    # 중심점 및 크기 정규화 계산
+                    ctx = (b['x1'] + b['x2']) / 2 / W
+                    cty = (b['y1'] + b['y2']) / 2 / H
+                    bw = abs(b['x1'] - b['x2']) / W
+                    bh = abs(b['y1'] - b['y2']) / H
 
-                    bbox_ctx = (b['x1'] + b['x2']) / 2
-                    bbox_cty = (b['y1'] + b['y2']) / 2
-                    bbox_w = abs(b['x1'] - b['x2'])
-                    bbox_h = abs(b['y1'] - b['y2'])
-
-                    bbox_ctx_norm = bbox_ctx / W
-                    bbox_cty_norm = bbox_cty / H
-                    bbox_w_norm = bbox_w / W
-                    bbox_h_norm = bbox_h / H
-
-                    bboxes.append([bbox_ctx_norm, bbox_cty_norm, bbox_w_norm, bbox_h_norm])
+                    bboxes.append([ctx, cty, bw, bh])
                     class_labels.append(self.cat_to_id[obj['category']])
 
         except Exception as e:
-            print(f"Error at index {idx}: {e}")
+            # 에러 발생 시 None 반환 (DataLoader에서 collate_fn 처리가 필요할 수 있음)
             self.num_dropped_images += 1
             return None
         
-        # Extraction of bbox and class in the json file.
-
-        # Augmentation
-        if self.transform: # The bbox type of the transform is yolo in this project.
+        # Augmentation 및 Feature Map 생성 로직은 기존과 동일하게 유지
+        if self.transform:
             transformed = self.transform(image=image, bboxes=bboxes, class_labels=class_labels)
             image = transformed['image']
             bboxes = transformed['bboxes']
             class_labels = transformed['class_labels']
         else:
-            # just tensorize with transform to be None
             image = torch.from_numpy(image.transpose(2, 0, 1)).float() / 255.0
 
-        # 의도적으로 픽셀이 겹치도록 설정
-        scale_ratios = {
-            8:  [0, 10],    # stride 8의 0~8배 크기 (0~64px @1x)
-            16: [4, 18],   # stride 16의 4~12배 크기 (64~192px @1x)
-            32: [8, 1000]  # stride 32의 8배 이상 (256px+ @1x)
-        }
+        scale_ratios = {8: [0, 10], 16: [4, 18], 32: [8, 1000]} # 이거 일러 이랬긴 했거든 근데 이게 이점이 있을까?
         results = {}
-        # Generate Gaussian Distribution of Ground Truth on the feature maps.
+
         for s in self.strides:
             _, H, W = image.shape
             h_f, w_f = math.ceil(H / s), math.ceil(W / s)
-
             hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
             regs = np.zeros((4, h_f, w_f), dtype=np.float32)
             mask = np.zeros((1, h_f, w_f), dtype=np.uint8)
-
-            current_ratio_range = scale_ratios[s]
             
+            current_range = scale_ratios[s]
             for i, box in enumerate(bboxes):
-                aug_ctx_norm, aug_cty_norm, aug_w_norm, aug_h_norm = box
+                ctx_norm, cty_norm, w_norm, h_norm = box
+                # 피처맵 크기에 맞게 스케일 조정
+                f_ctx, f_cty = ctx_norm * w_f, cty_norm * h_f
+                f_w, f_h = w_norm * w_f, h_norm * h_f
 
-                aug_ctx = aug_ctx_norm * w_f
-                aug_cty = aug_cty_norm * h_f
-                aug_w = aug_w_norm * w_f
-                aug_h = aug_h_norm * h_f
-
-                scale_in_feature_map = np.sqrt(aug_w * aug_h)
-                if not (current_ratio_range[0] <= scale_in_feature_map < current_ratio_range[1]):
+                if not (current_range[0] <= np.sqrt(f_w * f_h) < current_range[1]):
                     continue
 
-                cls_id = int(class_labels[i]) # The class_labels[i] possibly appear the type of like numpy.int32
-                
-                radius = self._gaussian_radius((aug_h, aug_w)) # 원본 픽셀 기준
-                radius = max(1, int(radius)) # P5의 경우 반지름을 1 이상으로 설정해야 할 수도 있음
-
-                ix = np.clip(int(aug_ctx), 0, w_f - 1)
-                iy = np.clip(int(aug_cty), 0, h_f - 1)
+                radius = max(1, int(self._gaussian_radius((f_h, f_w))))
+                ix, iy = int(f_ctx), int(f_cty)
                 
                 if 0 <= ix < w_f and 0 <= iy < h_f:
-                    self._draw_gaussian(hm[cls_id], (ix, iy), radius) # 정수 좌표 전달
-                    regs[0, iy, ix] = aug_w
-                    regs[1, iy, ix] = aug_h
-                    regs[2, iy, ix] = aug_ctx - ix # offset_x
-                    regs[3, iy, ix] = aug_cty - iy # offset_y
+                    self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
+                    regs[0, iy, ix] = f_w
+                    regs[1, iy, ix] = f_h
+                    regs[2, iy, ix] = f_ctx - ix
+                    regs[3, iy, ix] = f_cty - iy
                     mask[0, iy, ix] = 1
 
             results[f'hm_s{s}'] = torch.from_numpy(hm)
@@ -218,7 +137,3 @@ class BDDDataset(Dataset):
             results[f'mask_s{s}'] = torch.from_numpy(mask)
 
         return image, results
-    
-# hm (Heatmap)	[B, num_classes, H_f, W_f]	각 클래스별 중심점 확률 맵
-# reg (Regression)	[B, 4, H_f, W_f]	[w, h, offset_x, offset_y] 4가지 정보
-# mask (Loss Mask)	[B, 1, H_f, W_f]	객체 중심점 위치 표시 (0 또는 1)

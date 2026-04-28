@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 def decode_to_bbox(regs, x_idx, y_idx):
     """
-    모델의 출력값(regs)을 실제 좌표계의 [x1, y1, x2, y2]로 변환합니다.
+    모델의 출력값을 상응하는 좌표계의 [x1, y1, x2, y2]로 변환합니다.
     """
     w, h = regs[:, 0], regs[:, 1]
     ox, oy = regs[:, 2], regs[:, 3]
@@ -14,6 +14,21 @@ def decode_to_bbox(regs, x_idx, y_idx):
     y1 = cy - h / 2
     x2 = cx + w / 2
     y2 = cy + h / 2
+    
+    return torch.stack([x1, y1, x2, y2], dim=-1)
+
+def decode_to_bbox_in_raw(regs, x_idx, y_idx, stride):
+    """
+    모델의 피처맵 기준 출력값을 원본 영상 좌표계의 [x1, y1, x2, y2]로 변환합니다.
+    """
+    w, h = regs[:, 0], regs[:, 1]
+    ox, oy = regs[:, 2], regs[:, 3]
+    cx, cy = x_idx.float() + ox, y_idx.float() + oy
+    
+    x1 = (cx - w / 2) * stride
+    y1 = (cy - h / 2) * stride
+    x2 = (cx + w / 2) * stride
+    y2 = (cy + h / 2) * stride
     
     return torch.stack([x1, y1, x2, y2], dim=-1)
 
