@@ -76,7 +76,7 @@ def main():
     # CUDA일 때만 GradScaler 활성화
     scaler = torch.cuda.amp.GradScaler() if is_cuda else None
     
-    metrics = MetricsCalculator(threshold=0.5)
+    metrics = MetricsCalculator()
     
     #endregion
     

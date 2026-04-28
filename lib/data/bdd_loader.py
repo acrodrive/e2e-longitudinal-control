@@ -50,7 +50,54 @@ class BDDDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    # ... (가우시안 관련 메서드들 _gaussian_radius, _draw_gaussian, _gaussian_kernel은 동일) ...
+    def _gaussian_radius(self, det_size, min_overlap=0.7):
+        height, width = det_size
+
+        a1  = 1
+        b1  = (height + width)
+        c1  = width * height * (1 - min_overlap) / (1 + min_overlap)
+        sq1 = np.sqrt(max(0, b1 ** 2 - 4 * a1 * c1))
+        r1  = (b1 + sq1) / 2
+
+        a2  = 4
+        b2  = 2 * (height + width)
+        c2  = (1 - min_overlap) * width * height
+        sq2 = np.sqrt(max(0, b2 ** 2 - 4 * a2 * c2))
+        r2  = (b2 - sq2) / 2
+
+        a3  = 4 * min_overlap
+        b3  = -2 * min_overlap * (height + width)
+        c3  = (min_overlap - 1) * width * height
+        sq3 = np.sqrt(max(0, b3 ** 2 - 4 * a3 * c3))
+        r3  = (-b3 + sq3) / (2 * a3)
+        
+        return max(0, int(min(r1, r2, r3)))
+
+    def _draw_gaussian(self, heatmap, center, radius, k=1):
+        diameter = 2 * radius + 1
+        gaussian = self._gaussian_kernel(radius, sigma=diameter / 6)
+
+        gaussian[radius, radius] = 1.0
+
+        x, y = int(center[0]), int(center[1])
+        height, width = heatmap.shape[0:2]
+        
+        left, right = min(x, radius), min(width - x, radius + 1)
+        top, bottom = min(y, radius), min(height - y, radius + 1)
+        
+        masked_heatmap  = heatmap[y - top:y + bottom, x - left:x + right]
+        masked_gaussian = gaussian[radius - top:radius + bottom, radius - left:radius + right]
+        
+        if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:
+            np.maximum(masked_heatmap, masked_gaussian * k, out=masked_heatmap)
+        return heatmap
+
+    def _gaussian_kernel(self, radius, sigma):
+        size = 2 * radius + 1
+        x, y = np.mgrid[-radius:radius+1, -radius:radius+1]
+        g = np.exp(-(x**2 + y**2) / (2 * sigma**2))
+        return g
+
 
     def _read_image_rgb(self, img_path: str):
         image_bgr = cv2.imread(img_path)

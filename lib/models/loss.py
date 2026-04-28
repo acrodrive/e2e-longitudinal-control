@@ -10,39 +10,44 @@ class MultiLevelDetectionLoss(nn.Module):
         self.beta = beta
         self.lambda_ = lambda_
 
-    def forward(self, pred_hms, pred_boxes, gt_hms, gt_boxes, mask):
+    def forward(self, pred_hms, pred_boxes, gt_hms, gt_boxes, masks):
         # targets = self._dict_to_list(targets_dict)
         total_cls_loss, total_reg_loss, total_num_pos = 0, 0, 0
         
         for i in range(3):
             # pred_hm, pred_reg = predictions[i]
-            # gt_hm, gt_reg, mask = targets[i]
+            # gt_hm, gt_reg, masks = targets[i]
             # 
             # # 1. Classification (Focal Loss)
+            mask = masks[i]
             num_pos = mask.float().sum()
             total_num_pos += num_pos
-            # pred_hm = torch.clamp(pred_hm, min=1e-4, max=1-1e-4)
             
-            pos_mask = (gt_hms[i] == 1.0).float()
-            neg_mask = (gt_hms[i] < 1.0).float()
+            # pred_hm = torch.clamp(pred_hm, min=1e-4, max=1-1e-4)
+            pred_hm = torch.clamp(pred_hms[i], min=1e-7, max=1-1e-7)
+            
+            pos_masks = (gt_hms[i] == 1.0).float()
+            neg_masks = (gt_hms[i] < 1.0).float()
 
-            pos_loss = torch.log(pred_hms[i]) * torch.pow(1 - pred_hms[i], self.alpha) * pos_mask
-            neg_loss = torch.log(1 - pred_hms[i]) * torch.pow(pred_hms[i], self.alpha) * torch.pow(1 - gt_hms[i], self.beta) * neg_mask
-            total_cls_loss -= (pos_loss.sum() + neg_loss.sum())
+            pos_loss = torch.log(pred_hm) * torch.pow(1 - pred_hm, self.alpha) * pos_masks
+            neg_loss = torch.log(1 - pred_hm) * torch.pow(pred_hm, self.alpha) * torch.pow(1 - gt_hms[i], self.beta) * neg_masks
+
+            # 누적할 때 마이너스를 붙여서 양수로 저장
+            total_cls_loss += -(pos_loss.sum() + neg_loss.sum())
             
             # 2. Regression (GIoU)
-            # mask_bool = mask.squeeze(1) > 0.5
-            # if mask_bool.any():
-            #     batch_idx, y_idx, x_idx = torch.where(mask_bool)
-            #     p_regs = pred_reg.permute(0, 2, 3, 1)[mask_bool]
-            #     t_regs = gt_reg.permute(0, 2, 3, 1)[mask_bool]
+            # masks_bool = masks.squeeze(1) > 0.5
+            # if masks_bool.any():
+            #     batch_idx, y_idx, x_idx = torch.where(masks_bool)
+            #     p_regs = pred_reg.permute(0, 2, 3, 1)[masks_bool]
+            #     t_regs = gt_reg.permute(0, 2, 3, 1)[masks_bool]
             #     p_boxes = decode_to_bbox(p_regs, x_idx, y_idx)
             #     t_boxes = decode_to_bbox(t_regs, x_idx, y_idx)
             if pred_boxes[i].numel() > 0:
                 total_reg_loss += generalized_box_iou_loss(
                     pred_boxes[i], 
                     gt_boxes[i], 
-                    reduction='sum'
+                    reduction='sum' ########################################## mean 방식도 고려하기
                 )
             # total_reg_loss += generalized_box_iou_loss(pred_boxes[i], gt_boxes[i], reduction='sum')
                 
