@@ -43,23 +43,37 @@ class DetectionHead(nn.Module):
             nn.Sigmoid()
         )
 
-    def _make_reg_head(self, in_ch, out_ch):
+    def _make_reg_head(self, in_ch, out_ch): # w, h, ox, oy
         return nn.Sequential(
             nn.Conv2d(in_ch, 256, kernel_size=3, padding=1),
             nn.ReLU(), #inplace=True 고려?
             nn.Conv2d(256, out_ch, kernel_size=1)
         )
 
-    def forward(self, p3, p4, p5, boxes_gt=None, class_onehot_gt=None):
+    def forward(self, p3, p4, p5):
+        # 각 레벨의 출력 raw 값
+        out_p3_raw = (self.cls_p3(p3), self.reg_p3(p3))
+        out_p4_raw = (self.cls_p4(p4), self.reg_p4(p4))
+        out_p5_raw = (self.cls_p5(p5), self.reg_p5(p5))
+
+        processed_outs = []
+        for cls_out, reg_out in [out_p3_raw, out_p4_raw, out_p5_raw]:
+            # reg_out: [B, 4, H, W] -> (w, h, ox, oy)
+            # w, h (채널 0, 1)에만 Softplus 또는 exp 적용하여 양수 보장
+            w_h = torch.exp(reg_out[:, :2, :, :]) # 음수 방지를 위해 w, h에 exponential을 취해서 나오게됨
+            offset = reg_out[:, 2:, :, :]
+            reg_out = torch.cat([w_h, offset], dim=1)
+            processed_outs.append((cls_out, reg_out))
+            
+        # 2차 마일스톤 시 활성화: Mamba 입력 토큰 생성 (예: P4 기준)
+        # mamba_token = self._generate_tokens(p4, boxes_gt, class_onehot_gt)
+        # return [out_p3, out_p4, out_p5], mamba_token
+
+        return processed_outs
+
+    """def forward(self, p3, p4, p5, boxes_gt=None, class_onehot_gt=None):
         # 1차 마일스톤: 독립 헤드를 통한 예측
         out_p3 = (self.cls_p3(p3), self.reg_p3(p3))
         out_p4 = (self.cls_p4(p4), self.reg_p4(p4))
         out_p5 = (self.cls_p5(p5), self.reg_p5(p5))
-
-        """
-        # 2차 마일스톤 시 활성화: Mamba 입력 토큰 생성 (예: P4 기준)
-        # mamba_token = self._generate_tokens(p4, boxes_gt, class_onehot_gt)
-        # return [out_p3, out_p4, out_p5], mamba_token
-        """
-        
-        return [out_p3, out_p4, out_p5]
+        return [out_p3, out_p4, out_p5]"""

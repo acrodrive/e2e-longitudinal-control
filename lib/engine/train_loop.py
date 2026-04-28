@@ -1,7 +1,7 @@
 import wandb
 import torch
 from torch import amp
-from lib.utils.utils import decode_to_bbox_in_raw
+from lib.utils.utils import decode_to_bbox, decode_to_bbox_in_raw
 import lib.utils.metrics
 
 def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device, metrics, epoch, epochs):
@@ -44,8 +44,8 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
                     pred_regs = pred_reg.permute(0, 2, 3, 1)[mask_bool]
                     gt_regs = gt_reg.permute(0, 2, 3, 1)[mask_bool]
 
-                    pred_box = decode_to_bbox_in_raw(pred_regs, x_idx, y_idx, 8*2**j)
-                    gt_box = decode_to_bbox_in_raw(gt_regs, x_idx, y_idx, 8*2**j)
+                    pred_box = decode_to_bbox(pred_regs, x_idx, y_idx)
+                    gt_box = decode_to_bbox(gt_regs, x_idx, y_idx)
                 else:
                     # 객체가 없는 경우 빈 텐서 전달 (Loss/Metrics에서 처리 가능하게)
                     pred_box = torch.empty((0, 4), device=device)
@@ -61,6 +61,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
         
         if is_cuda:
             scaler.scale(tot_loss).backward()
+            #torch.nn.utils.clip_grad_norm_(parameters, max_norm=10.0)
             scaler.step(optimizer)
             scaler.update()
         else:

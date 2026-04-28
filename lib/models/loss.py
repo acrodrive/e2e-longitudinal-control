@@ -4,7 +4,7 @@ from torchvision.ops import generalized_box_iou_loss
 from lib.utils.utils import decode_to_bbox
 
 class MultiLevelDetectionLoss(nn.Module):
-    def __init__(self, alpha=2, beta=4, lambda_=1, threshold=0.5):
+    def __init__(self, alpha=2, beta=4, lambda_=1):
         super(MultiLevelDetectionLoss, self).__init__()
         self.alpha = alpha
         self.beta = beta
