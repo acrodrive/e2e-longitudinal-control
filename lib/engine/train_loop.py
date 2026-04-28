@@ -57,17 +57,17 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
                 collected_data['gt_boxes'].append(gt_box)
                 collected_data['masks'].append(mask)
             
-            loss = criterion(**collected_data)
+            tot_loss, cls_loss, reg_loss = criterion(**collected_data)
         
         if is_cuda:
-            scaler.scale(loss).backward()
+            scaler.scale(tot_loss).backward()
             scaler.step(optimizer)
             scaler.update()
         else:
-            loss.backward()
+            tot_loss.backward()
             optimizer.step()
             
-        epoch_loss += loss.item()
+        epoch_loss += tot_loss.item()
         
         for j in range(3):
             # collected_data 딕셔너리에서 데이터를 가져와야 합니다.
@@ -90,11 +90,13 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
 
         if i % 10 == 0:
             wandb.log({
-                "batch_loss": loss.item(),
+                "class_loss": cls_loss.item(),
+                "reg_loss": reg_loss.item(),
+                "batch_loss": tot_loss.item(),
                 "global_step": epoch * len(loader) + i
             })
         if i % 100 == 0 and i != 0:
-            print(f"train process: {i}/{batch}")
+            print(f"train process: {i}")
 
     # 에폭이 끝나고 평균값 기록
     avg_loss = epoch_loss / len(loader)

@@ -4,7 +4,7 @@ from torchvision.ops import generalized_box_iou_loss
 from lib.utils.utils import decode_to_bbox
 
 class MultiLevelDetectionLoss(nn.Module):
-    def __init__(self, alpha=2, beta=4, lambda_=2, threshold=0.5):
+    def __init__(self, alpha=2, beta=4, lambda_=1, threshold=0.5):
         super(MultiLevelDetectionLoss, self).__init__()
         self.alpha = alpha
         self.beta = beta
@@ -47,13 +47,14 @@ class MultiLevelDetectionLoss(nn.Module):
                 total_reg_loss += generalized_box_iou_loss(
                     pred_boxes[i], 
                     gt_boxes[i], 
-                    reduction='sum' ########################################## mean 방식도 고려하기
+                    reduction='mean'
                 )
             # total_reg_loss += generalized_box_iou_loss(pred_boxes[i], gt_boxes[i], reduction='sum')
-                
-        total_num_pos = torch.clamp(total_num_pos, min=1.0)
-        cls_loss = total_cls_loss / total_num_pos
-        reg_loss = total_reg_loss / total_num_pos
 
-        # print(f"Loss(Total): {cls_loss.item() + self.lambda_ * reg_loss.item():.4f})        
-        return (total_cls_loss / total_num_pos) + (self.lambda_ * total_reg_loss / total_num_pos)
+        total_num_pos = torch.clamp(total_num_pos, min=1.0)
+        
+        cls_loss = total_cls_loss / total_num_pos
+        reg_loss = self.lambda_ * total_reg_loss
+        tot_loss = (total_cls_loss / total_num_pos) + (self.lambda_ * total_reg_loss)
+        
+        return tot_loss, cls_loss, reg_loss
