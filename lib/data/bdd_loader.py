@@ -33,7 +33,6 @@ class BDDDataset(Dataset):
         # 사용자가 분류한 하위 폴더 리스트
         if self.mode == 'train':
             self.sub_dirs = ['trainA', 'trainB', 'testA', 'testB']
-
             
             for sub in self.sub_dirs:
                 sub_path = os.path.join(self.img_dir, sub)
@@ -48,12 +47,13 @@ class BDDDataset(Dataset):
             
             print(f"Total train images found in folders: {len(self.file_to_path)}")
             print(f"Total valid annotations matched: {len(self.data)}")
+            
         elif self.mode == 'val':
             if os.path.exists(self.img_dir):
                 for f_name in os.listdir(self.img_dir):
                     self.file_to_path[f_name] = os.path.join(self.img_dir, f_name)
 
-            self.data = [item for item in full_data if item.get('name') in self.img_dir]
+            self.data = [item for item in full_data if item.get('name') in self.file_to_path]
 
     def __len__(self):
         return len(self.data)
