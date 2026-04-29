@@ -1,3 +1,4 @@
+import wandb
 import torch
 from torch import amp
 from lib.utils.utils import post_process
@@ -107,9 +108,7 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
         metric.update(batch_preds, batch_targets)
 
     results = metric.compute()
-    
-    # WandB 로깅 시 epoch을 명시적으로 기록[cite: 3]
-    import wandb
+
     wandb.log({
         "val/mAP": results["map"].item(),
         "val/mAP_50": results["map_50"].item(),
