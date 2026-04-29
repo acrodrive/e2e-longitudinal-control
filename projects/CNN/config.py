@@ -3,10 +3,10 @@ import torch
 class Config:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_classes = 10
-    batch_size = 32
+    batch_size = 16
     lr = 1e-4
     weight_decay = 1e-4
-    epochs = 5
+    epochs = 15
 
     fpn_out_channels = 256
 
