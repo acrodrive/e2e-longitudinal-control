@@ -126,11 +126,16 @@ class BDDDataset(Dataset):
                 if 'box2d' in obj and obj['category'] in self.cat_to_id:
                     b = obj['box2d']
                     # ctx, cty: center of bbox, bw, bh: width and height of bbox
-                    ctx = (b['x1'] + b['x2']) / 2 / W
-                    cty = (b['y1'] + b['y2']) / 2 / H
-                    bw = abs(b['x1'] - b['x2']) / W
-                    bh = abs(b['y1'] - b['y2']) / H
-
+                    if self.mode == 'train':
+                        ctx = (b['x1'] + b['x2']) / 2 / W
+                        cty = (b['y1'] + b['y2']) / 2 / H
+                        bw = abs(b['x1'] - b['x2']) / W
+                        bh = abs(b['y1'] - b['y2']) / H
+                    else:
+                        ctx = (b['x1'] + b['x2']) / 2
+                        cty = (b['y1'] + b['y2']) / 2
+                        bw = abs(b['x1'] - b['x2'])
+                        bh = abs(b['y1'] - b['y2'])
                     bboxes.append([ctx, cty, bw, bh])
                     class_labels.append(self.cat_to_id[obj['category']])
 

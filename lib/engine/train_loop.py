@@ -19,7 +19,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
         
         optimizer.zero_grad()
         
-        context = amp.autocast(device_type=device.type) if is_cuda else torch.enable_grad()
+        context = amp.autocast(device_type=device.type) if is_cuda else torch.enable_grad() #contextlib.nullcontext()
 
         with context:
             p3, p4, p5 = backbone(imgs)
