@@ -4,15 +4,15 @@ class Config:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_classes = 10
     batch_size = 16
-    lr = 1e-5
+    lr = 1e-4
     weight_decay = 1e-4
-    epochs = 5
+    epochs = 15
 
     fpn_out_channels = 256
 
     JSON_PATH = "datasets/archive/bdd100k_labels_release/bdd100k/labels/bdd100k_labels_images_train.json"
     IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/train"
-    CHECKPOINT_PATH = None # "checkpoint/"
+    CHECKPOINT_PATH = checkpoints/last_model.pth.tar
 
     img_W = 1280
     img_H = 720

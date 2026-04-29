@@ -97,7 +97,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
                 "global_step": epoch * len(loader) + i
             })
         if i % 100 == 0 and i != 0:
-            print(f"train process: {i}")
+            print(f"[Epoch {epoch}/{epochs}] Batch: {i}/{len(loader)}")
 
     # 에폭이 끝나고 평균값 기록
     avg_loss = epoch_loss / len(loader)
@@ -106,7 +106,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
     wandb.log({
         "epoch": epoch,
         "train_avg_loss": avg_loss,
-        "f1_score": stats['avg_pos_conf'],
+        "confidence": stats['avg_pos_conf'],
         "mae": stats['avg_pixel_mae']
     })
             
