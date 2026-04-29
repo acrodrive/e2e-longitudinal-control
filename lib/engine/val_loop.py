@@ -1,5 +1,6 @@
 import torch
 from torch import amp
+from lib.utils.utils import post_process
 
 @torch.no_grad()
 def validate_one_epoch(backbone, head, loader, criterion, device, metrics, epoch):
@@ -61,3 +62,48 @@ def validate_one_epoch(backbone, head, loader, criterion, device, metrics, epoch
     stats = metrics.compute()
     
     return avg_val_loss, stats
+
+
+@torch.no_grad()
+def validate_with_map(backbone, head, loader, device, metric):
+    backbone.eval()
+    head.eval()
+    metric.reset()
+    
+    strides = [8, 16, 32]
+
+    for imgs, targets in loader: # Dataset 수정으로 targets가 단순해짐
+        imgs = imgs.to(device)
+        
+        p3, p4, p5 = backbone(imgs)
+        preds = head(p3, p4, p5)
+        
+        pred_hms = [p[0] for p in preds]
+        pred_regs = [p[1] for p in preds]
+
+        # 예측값 변환 (Post-processing)
+        batch_preds = []
+        for b_idx in range(imgs.size(0)):
+            single_hms = [hm[b_idx:b_idx+1] for hm in pred_hms]
+            single_regs = [reg[b_idx:b_idx+1] for reg in pred_regs]
+            
+            # 히트맵에서 최종 박스 추출[cite: 8]
+            decoded = post_process(single_hms, single_regs, strides, threshold=0.1)
+            
+            batch_preds.append({
+                "boxes": torch.tensor([d['box'] for d in decoded]).to(device),
+                "scores": torch.tensor([d['score'] for d in decoded]).to(device),
+                "labels": torch.tensor([d['class_id'] for d in decoded]).to(device)
+            })
+
+        # 정답값 변환 (Dataset에서 이미 처리됨)
+        batch_targets = []
+        for b_idx in range(len(targets["boxes"])):
+            batch_targets.append({
+                "boxes": targets["boxes"][b_idx].to(device),
+                "labels": targets["labels"][b_idx].to(device)
+            })
+
+        metric.update(batch_preds, batch_targets)
+
+    return metric.compute()

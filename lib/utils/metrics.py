@@ -1,4 +1,5 @@
 import torch
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 class MetricsCalculator:
     def __init__(self):
@@ -42,6 +43,25 @@ class MetricsCalculator:
             "avg_pixel_mae": avg_pixel_mae
         }
 
+class MAPCalculator:
+    def __init__(self, device='cpu'):
+        # box_format='xyxy'는 [x1, y1, x2, y2] 형식을 의미합니다.
+        self.metric = MeanAveragePrecision(box_format='xyxy', class_metrics=True).to(device)
+
+    def update(self, preds, targets):
+        """
+        preds: 리스트 [ {"boxes": tensor, "scores": tensor, "labels": tensor}, ... ]
+        targets: 리스트 [ {"boxes": tensor, "labels": tensor}, ... ]
+        """
+        self.metric.update(preds, targets)
+
+    def compute(self):
+        """최종 mAP 지표 계산"""
+        return self.metric.compute()
+
+    def reset(self):
+        self.metric.reset()
+        
 """import torch
 
 class MetricsCalculator:

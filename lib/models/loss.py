@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchvision.ops import generalized_box_iou_loss
+from torchvision.ops import complete_box_iou_loss
 from lib.utils.utils import decode_to_bbox
 
 class MultiLevelDetectionLoss(nn.Module):
@@ -44,11 +44,17 @@ class MultiLevelDetectionLoss(nn.Module):
             #     p_boxes = decode_to_bbox(p_regs, x_idx, y_idx)
             #     t_boxes = decode_to_bbox(t_regs, x_idx, y_idx)
             if pred_boxes[i].numel() > 0:
-                total_reg_loss += generalized_box_iou_loss(
+                total_reg_loss += complete_box_iou_loss( # 함수명 변경
                     pred_boxes[i], 
                     gt_boxes[i], 
                     reduction='mean'
                 )
+            """if pred_boxes[i].numel() > 0:
+                total_reg_loss += generalized_box_iou_loss(
+                    pred_boxes[i], 
+                    gt_boxes[i], 
+                    reduction='mean'
+                )"""
             # total_reg_loss += generalized_box_iou_loss(pred_boxes[i], gt_boxes[i], reduction='sum')
 
         total_num_pos = torch.clamp(total_num_pos, min=1.0)

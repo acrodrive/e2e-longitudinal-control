@@ -7,7 +7,7 @@ import os
 import math
 
 class BDDDataset(Dataset):
-    def __init__(self, json_path, img_dir, transform=None, num_classes=10, max_retries=20):
+    def __init__(self, json_path, img_dir, transform=None, num_classes=10, max_retries=20, mode='train'):
         # 1. 원본 JSON 데이터 로드
         with open(json_path, 'r') as f:
             full_data = json.load(f)
@@ -19,6 +19,7 @@ class BDDDataset(Dataset):
         self.strides = [8, 16, 32]
         self.num_images = 0
         self.num_dropped_images = 0
+        self.mode = mode # 'train', 'val', 'test' 중 선택
 
         # BDD100K 클래스 매핑
         self.cat_to_id = {
@@ -148,39 +149,48 @@ class BDDDataset(Dataset):
         else:
             image = torch.from_numpy(image.transpose(2, 0, 1)).float() / 255.0
 
-        scale_ratios = {8: [0, 10], 16: [4, 18], 32: [8, 1000]} # 이거 일러 이랬긴 했거든 근데 이게 이점이 있을까?
+        scale_ratios = {8: [0, 10], 16: [4, 18], 32: [8, 1000]} # 이거 일부러 이랬긴 했거든 근데 이게 이점이 있을까?
         results = {}
 
-        for s in self.strides:
-            _, H, W = image.shape
-            h_f, w_f = math.ceil(H / s), math.ceil(W / s)
-            hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
-            regs = np.zeros((4, h_f, w_f), dtype=np.float32)
-            mask = np.zeros((1, h_f, w_f), dtype=np.uint8)
-            
-            current_range = scale_ratios[s]
-            for i, box in enumerate(bboxes):
-                ctx_norm, cty_norm, w_norm, h_norm = box
-                # 피처맵 크기에 맞게 스케일 조정
-                f_ctx, f_cty = ctx_norm * w_f, cty_norm * h_f
-                f_w, f_h = w_norm * w_f, h_norm * h_f
 
-                if not (current_range[0] <= np.sqrt(f_w * f_h) < current_range[1]):
-                    continue
-
-                radius = max(1, int(self._gaussian_radius((f_h, f_w))))
-                ix, iy = int(f_ctx), int(f_cty)
+        if self.mode == 'train':
+            for s in self.strides:
+                _, H, W = image.shape
+                h_f, w_f = math.ceil(H / s), math.ceil(W / s)
+                hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
+                regs = np.zeros((4, h_f, w_f), dtype=np.float32)
+                mask = np.zeros((1, h_f, w_f), dtype=np.uint8)
                 
-                if 0 <= ix < w_f and 0 <= iy < h_f:
-                    self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
-                    regs[0, iy, ix] = f_w
-                    regs[1, iy, ix] = f_h
-                    regs[2, iy, ix] = f_ctx - ix
-                    regs[3, iy, ix] = f_cty - iy
-                    mask[0, iy, ix] = 1
+                current_range = scale_ratios[s]
+                for i, box in enumerate(bboxes):
+                    ctx_norm, cty_norm, w_norm, h_norm = box
+                    # 피처맵 크기에 맞게 스케일 조정
+                    f_ctx, f_cty = ctx_norm * w_f, cty_norm * h_f
+                    f_w, f_h = w_norm * w_f, h_norm * h_f
 
-            results[f'hm_s{s}'] = torch.from_numpy(hm)
-            results[f'reg_s{s}'] = torch.from_numpy(regs)
-            results[f'mask_s{s}'] = torch.from_numpy(mask)
+                    if not (current_range[0] <= np.sqrt(f_w * f_h) < current_range[1]):
+                        continue
 
-        return image, results
+                    radius = max(1, int(self._gaussian_radius((f_h, f_w))))
+                    ix, iy = int(f_ctx), int(f_cty)
+                    
+                    if 0 <= ix < w_f and 0 <= iy < h_f:
+                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
+                        regs[0, iy, ix] = f_w
+                        regs[1, iy, ix] = f_h
+                        regs[2, iy, ix] = f_ctx - ix
+                        regs[3, iy, ix] = f_cty - iy
+                        mask[0, iy, ix] = 1
+
+                results[f'hm_s{s}'] = torch.from_numpy(hm)
+                results[f'reg_s{s}'] = torch.from_numpy(regs)
+                results[f'mask_s{s}'] = torch.from_numpy(mask)
+
+            return image, results
+        else:
+            target = {
+                "boxes": torch.as_tensor(bboxes, dtype=torch.float32),
+                "labels": torch.as_tensor(class_labels, dtype=torch.int64),
+                "image_name": self.data[idx].get('name')
+            }
+            return image, target

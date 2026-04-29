@@ -4,7 +4,7 @@ from torch import amp
 from lib.utils.utils import decode_to_bbox, decode_to_bbox_in_raw
 import lib.utils.metrics
 
-def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device, metrics, epoch, epochs):
+def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, scaler, device, metrics, epoch, epochs):
     backbone.train()
     head.train()
     epoch_loss = 0.0
@@ -109,5 +109,8 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scaler, device
         "confidence": stats['avg_pos_conf'],
         "mae": stats['avg_pixel_mae']
     })
+
+    if scheduler is not None:
+        scheduler.step()
             
     return avg_loss, stats
