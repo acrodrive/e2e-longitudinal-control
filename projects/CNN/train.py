@@ -91,10 +91,10 @@ def main():
 
     #region 5. 데이터 준비
     train_transform = get_train_transforms(bbox_format=Config.bbox_format)
-    train_dataset = BDDDataset(json_path=TRAIN_JSON_PATH, img_dir=TRAIN_IMG_DIR, transform=train_transform, num_classes=num_classes)
+    train_dataset = BDDDataset(json_path=TRAIN_JSON_PATH, img_dir=TRAIN_IMG_DIR, transform=train_transform, num_classes=num_classes, mode='train')
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn, persistent_workers=True)
     
-    val_dataset = BDDDataset(json_path=VAL_JSON_PATH, img_dir=VAL_IMG_DIR, transform=None, num_classes=num_classes)
+    val_dataset = BDDDataset(json_path=VAL_JSON_PATH, img_dir=VAL_IMG_DIR, transform=None, num_classes=num_classes, mode='val')
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn, persistent_workers=True)
 
     print(f"Starting training on {device} (FP16: {is_cuda})...")

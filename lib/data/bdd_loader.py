@@ -7,7 +7,7 @@ import os
 import math
 
 class BDDDataset(Dataset):
-    def __init__(self, json_path, img_dir, transform=None, num_classes=10, max_retries=20, mode='train'):
+    def __init__(self, json_path, img_dir, transform=None, num_classes=10, mode='train'):
         # 1. 원본 JSON 데이터 로드
         with open(json_path, 'r') as f:
             full_data = json.load(f)
@@ -15,7 +15,6 @@ class BDDDataset(Dataset):
         self.img_dir = img_dir
         self.transform = transform
         self.num_classes = num_classes
-        self.max_retries = int(max_retries)
         self.strides = [8, 16, 32]
         self.num_images = 0
         self.num_dropped_images = 0
