@@ -32,9 +32,9 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
             
             if len(decoded) > 0:
                 batch_preds.append({
-                    "boxes": torch.tensor([d['box'] for d in decoded]).to(device),
-                    "scores": torch.tensor([d['score'] for d in decoded]).to(device),
-                    "labels": torch.tensor([d['class_id'] for d in decoded]).to(device)
+                    "boxes": torch.stack([d['box'] for d in decoded]).to(device),
+                    "scores": torch.stack([d['score'] for d in decoded]).to(device),
+                    "labels": torch.stack([d['class_id'] for d in decoded]).to(device)
                 })
             else:
                 batch_preds.append({
