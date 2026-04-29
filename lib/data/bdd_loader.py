@@ -29,24 +29,32 @@ class BDDDataset(Dataset):
             'train': 9
         }
 
+        self.file_to_path = {}
         # 2. 실제 폴더(trainA, trainB 등) 내의 파일 리스트 스캔
         # 사용자가 분류한 하위 폴더 리스트
-        self.sub_dirs = ['trainA', 'trainB', 'testA', 'testB']
-        self.file_to_path = {}
-        
-        for sub in self.sub_dirs:
-            sub_path = os.path.join(self.img_dir, sub)
-            if os.path.exists(sub_path):
-                for f_name in os.listdir(sub_path):
-                    # 파일명: 실제 경로 매핑 저장
-                    self.file_to_path[f_name] = os.path.join(sub_path, f_name)
+        if self.mode == 'train':
+            self.sub_dirs = ['trainA', 'trainB', 'testA', 'testB']
 
-        # 3. 폴더에 존재하는 파일들만 JSON 데이터에서 필터링
-        # JSON의 'name'이 실제 폴더 안에 존재하는 경우만 self.data에 유지
-        self.data = [item for item in full_data if item.get('name') in self.file_to_path]
-        
-        print(f"Total images found in folders: {len(self.file_to_path)}")
-        print(f"Total valid annotations matched: {len(self.data)}")
+            
+            for sub in self.sub_dirs:
+                sub_path = os.path.join(self.img_dir, sub)
+                if os.path.exists(sub_path):
+                    for f_name in os.listdir(sub_path):
+                        # 파일명: 실제 경로 매핑 저장
+                        self.file_to_path[f_name] = os.path.join(sub_path, f_name)
+
+            # 3. 폴더에 존재하는 파일들만 JSON 데이터에서 필터링
+            # JSON의 'name'이 실제 폴더 안에 존재하는 경우만 self.data에 유지
+            self.data = [item for item in full_data if item.get('name') in self.file_to_path]
+            
+            print(f"Total train images found in folders: {len(self.file_to_path)}")
+            print(f"Total valid annotations matched: {len(self.data)}")
+        elif self.mode == 'val':
+            if os.path.exists(self.img_dir):
+                for f_name in os.listdir(self.img_dir):
+                    self.file_to_path[f_name] = os.path.join(self.img_dir, f_name)
+
+            self.data = [item for item in full_data if item.get('name') in self.img_dir]
 
     def __len__(self):
         return len(self.data)
