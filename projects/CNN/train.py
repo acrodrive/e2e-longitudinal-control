@@ -112,10 +112,9 @@ def main():
         }
         if is_cuda:
             checkpoint_state['scaler_state_dict'] = scaler.state_dict()
-            
-        save_checkpoint(checkpoint_state, epoch + 1)
         
-    validate_with_map(backbone, head, val_loader, device, metrics)
+        validate_with_map(backbone, head, val_loader, device, metrics, epoch)
+        save_checkpoint(checkpoint_state, epoch + 1)
 
 if __name__ == "__main__":
     main()

@@ -65,7 +65,7 @@ def validate_one_epoch(backbone, head, loader, criterion, device, metrics, epoch
 
 
 @torch.no_grad()
-def validate_with_map(backbone, head, loader, device, metric):
+def validate_with_map(backbone, head, loader, device, metric, epoch):
     backbone.eval()
     head.eval()
     metric.reset()
@@ -106,4 +106,15 @@ def validate_with_map(backbone, head, loader, device, metric):
 
         metric.update(batch_preds, batch_targets)
 
-    return metric.compute()
+    results = metric.compute()
+    
+    # WandB 로깅 시 epoch을 명시적으로 기록[cite: 3]
+    import wandb
+    wandb.log({
+        "val/mAP": results["map"].item(),
+        "val/mAP_50": results["map_50"].item(),
+        "epoch": epoch
+    })
+    
+    print(f"[{epoch}] Validation mAP: {results['map']:.4f}")
+    return results
