@@ -115,12 +115,9 @@ def get_local_maximum(heat, kernel=3):
     return heat * keep
 
 def post_process(pred_hms, pred_regs, strides, threshold=0.3, top_k=100):
-    """
-    모든 연산을 GPU에서 수행하여 CPU-GPU 전송 오버헤드를 제거합니다.
-    """
     batch_size = pred_hms[0].shape[0]
     device = pred_hms[0].device
-    all_detections = [[] for _ in range(batch_size)]
+    all_detections = [[] for _ in range(batch_size)] # CAUTION: if len(pred_hms) == 1, access retval with [0]
     
     for i in range(len(pred_hms)):
         # 1. Local Maximum 추출 (이미 구현된 함수 사용)[cite: 8]

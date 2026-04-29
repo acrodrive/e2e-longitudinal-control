@@ -27,14 +27,22 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
             single_regs = [reg[b_idx:b_idx+1] for reg in pred_regs]
             
             # 히트맵에서 최종 박스 추출
-            decoded = post_process(single_hms, single_regs, strides, threshold=0.1)
+            decoded_batch = post_process(single_hms, single_regs, strides, threshold=0.1)
+            decoded = decoded_batch[0]
             
-            batch_preds.append({
-                "boxes": torch.tensor([d['box'] for d in decoded]).to(device),
-                "scores": torch.tensor([d['score'] for d in decoded]).to(device),
-                "labels": torch.tensor([d['class_id'] for d in decoded]).to(device)
-            })
-
+            if len(decoded) > 0:
+                batch_preds.append({
+                    "boxes": torch.tensor([d['box'] for d in decoded]).to(device),
+                    "scores": torch.tensor([d['score'] for d in decoded]).to(device),
+                    "labels": torch.tensor([d['class_id'] for d in decoded]).to(device)
+                })
+            else:
+                batch_preds.append({
+                    "boxes": torch.empty((0, 4), device=device),
+                    "scores": torch.empty((0,), device=device),
+                    "labels": torch.empty((0,), dtype=torch.int64, device=device)
+                })
+                
         # 정답값 변환 (Dataset에서 이미 처리됨)
         batch_targets = []
         for t in targets: # 리스트 내부의 개별 타겟 딕셔너리에 접근

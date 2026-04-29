@@ -44,7 +44,7 @@ class MultiLevelDetectionLoss(nn.Module):
         total_num_pos = torch.clamp(total_num_pos, min=1.0)
         
         cls_loss = total_cls_loss / total_num_pos
-        reg_loss = self.lambda_ * total_reg_loss
+        reg_loss = total_reg_loss / total_num_pos
         
         tot_loss = cls_loss + (self.lambda_ * reg_loss)
         
