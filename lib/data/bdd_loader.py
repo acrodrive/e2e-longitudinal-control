@@ -131,12 +131,14 @@ class BDDDataset(Dataset):
                         cty = (b['y1'] + b['y2']) / 2 / H
                         bw = abs(b['x1'] - b['x2']) / W
                         bh = abs(b['y1'] - b['y2']) / H
+                        bboxes.append([ctx, cty, bw, bh])
                     else:
-                        ctx = (b['x1'] + b['x2']) / 2
-                        cty = (b['y1'] + b['y2']) / 2
-                        bw = abs(b['x1'] - b['x2'])
-                        bh = abs(b['y1'] - b['y2'])
-                    bboxes.append([ctx, cty, bw, bh])
+                        x1 = b['x1']
+                        y1 = b['y1']
+                        x2 = b['x2']
+                        y2 = b['y2']
+                        bboxes.append([x1, y1, x2, y2])
+                    
                     class_labels.append(self.cat_to_id[obj['category']])
 
         except Exception as e:
