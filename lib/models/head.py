@@ -28,13 +28,6 @@ class DetectionHead(nn.Module):
         nn.init.constant_(self.cls_p4[-2].bias, bias_value)
         nn.init.constant_(self.cls_p5[-2].bias, bias_value)
 
-        """
-        # 2차 마일스톤: Mamba Tokenizer 관련 (나중에 활성화)
-        # self.roi_align = ...
-        # self.mlp_box = ...
-        # self.mlp_feat = ...
-        """
-
     def _make_cls_head(self, in_ch, out_ch):
         return nn.Sequential(
             nn.Conv2d(in_ch, 256, kernel_size=3, padding=1),
@@ -60,7 +53,7 @@ class DetectionHead(nn.Module):
         for cls_out, reg_out in [out_p3_raw, out_p4_raw, out_p5_raw]:
             # reg_out: [B, 4, H, W] -> (w, h, ox, oy)
             # w, h (채널 0, 1)에만 Softplus 또는 exp 적용하여 양수 보장
-            w_h = torch.exp(reg_out[:, :2, :, :]) # 음수 방지를 위해 w, h에 exponential을 취해서 나오게됨
+            w_h = torch.exp(reg_out[:, :2, :, :]) # 음수 방지를 위해 모델 출력의 exponential 값이 w, h임
             offset = reg_out[:, 2:, :, :]
             reg_out = torch.cat([w_h, offset], dim=1)
             processed_outs.append((cls_out, reg_out))
@@ -70,10 +63,3 @@ class DetectionHead(nn.Module):
         # return [out_p3, out_p4, out_p5], mamba_token
 
         return processed_outs
-
-    """def forward(self, p3, p4, p5, boxes_gt=None, class_onehot_gt=None):
-        # 1차 마일스톤: 독립 헤드를 통한 예측
-        out_p3 = (self.cls_p3(p3), self.reg_p3(p3))
-        out_p4 = (self.cls_p4(p4), self.reg_p4(p4))
-        out_p5 = (self.cls_p5(p5), self.reg_p5(p5))
-        return [out_p3, out_p4, out_p5]"""

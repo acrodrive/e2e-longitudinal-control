@@ -2,7 +2,6 @@ import wandb
 import torch
 from torch import amp
 from lib.utils.utils import decode_to_bbox, decode_to_bbox_in_raw
-import lib.utils.metrics
 
 def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, scaler, device, metrics, epoch, epochs):
     backbone.train()
@@ -20,7 +19,6 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
         
         optimizer.zero_grad()
         
-        # Mixed Precision 지원
         context = amp.autocast(device_type=device.type) if is_cuda else torch.enable_grad()
 
         with context:
@@ -56,38 +54,24 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
                 collected_data['pred_boxes'].append(pred_box)
                 collected_data['gt_boxes'].append(gt_box)
                 collected_data['masks'].append(mask)
+                
+                pos_mask = (gt_hm == 1.0).float()
+                metrics.update_conf(pred_hm, pos_mask)
             
+                if pred_box.numel() > 0:
+                    metrics.update_mae(pred_box, gt_box, stride=8 * (2**j))
+
             tot_loss, cls_loss, reg_loss = criterion(**collected_data)
         
         if is_cuda:
             scaler.scale(tot_loss).backward()
-            #torch.nn.utils.clip_grad_norm_(parameters, max_norm=10.0)
             scaler.step(optimizer)
             scaler.update()
         else:
             tot_loss.backward()
             optimizer.step()
-            
+        
         epoch_loss += tot_loss.item()
-        
-        for j in range(3):
-            # collected_data 딕셔너리에서 데이터를 가져와야 합니다.
-            p_hm = collected_data['pred_hms'][j]
-            g_hm = collected_data['gt_hms'][j]
-            p_box = collected_data['pred_boxes'][j]
-            g_box = collected_data['gt_boxes'][j]
-
-            # [Confidence 업데이트] 정답 위치의 활성화 정도
-            # gt_hms[j] == 1.0인 지점(Center)만 mask로 사용
-            pos_mask = (g_hm == 1.0).float()
-            metrics.update_conf(p_hm, pos_mask)
-        
-            # [MAE 업데이트] stride 반영
-            if p_box.numel() > 0:
-                metrics.update_mae(p_box, g_box, stride=8 * (2**j))
-
-        #if i % 10 == 0 and i != 0:
-        #    print(f"Epoch [{epoch}/{epochs}] Batch [{i}/{len(loader)}] Loss: {loss.item():.4f}")
 
         if i % 10 == 0:
             wandb.log({
@@ -99,9 +83,8 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
         if i % 100 == 0 and i != 0:
             print(f"[Epoch {epoch}/{epochs}] Batch: {i}/{len(loader)}")
 
-    # 에폭이 끝나고 평균값 기록
     avg_loss = epoch_loss / len(loader)
-    stats = metrics.compute() # 분리한 metrics 클래스 활용
+    stats = metrics.compute()
     
     wandb.log({
         "epoch": epoch,
@@ -112,5 +95,5 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
 
     if scheduler is not None:
         scheduler.step()
-            
-    return avg_loss, stats
+    
+    return avg_loss

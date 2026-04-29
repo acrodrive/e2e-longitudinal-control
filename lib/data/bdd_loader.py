@@ -8,19 +8,14 @@ import math
 
 class BDDDataset(Dataset):
     def __init__(self, json_path, img_dir, transform=None, num_classes=10, mode='train'):
-        # 1. 원본 JSON 데이터 로드
-        with open(json_path, 'r') as f:
-            full_data = json.load(f)
-        
         self.img_dir = img_dir
         self.transform = transform
         self.num_classes = num_classes
         self.strides = [8, 16, 32]
         self.num_images = 0
         self.num_dropped_images = 0
-        self.mode = mode # 'train', 'val', 'test' 중 선택
-
-        # BDD100K 클래스 매핑
+        self.mode = mode # 'train', 'val' or 'test'
+        
         self.cat_to_id = {
             'pedestrian': 0, 'rider': 1, 'bike': 2, 'motor': 3,
             'car': 4, 'bus': 5, 'truck': 6, 
@@ -29,8 +24,10 @@ class BDDDataset(Dataset):
         }
 
         self.file_to_path = {}
-        # 2. 실제 폴더(trainA, trainB 등) 내의 파일 리스트 스캔
-        # 사용자가 분류한 하위 폴더 리스트
+
+        with open(json_path, 'r') as f:
+            full_data = json.load(f)
+
         if self.mode == 'train':
             self.sub_dirs = ['trainA', 'trainB', 'testA', 'testB']
             
@@ -38,22 +35,19 @@ class BDDDataset(Dataset):
                 sub_path = os.path.join(self.img_dir, sub)
                 if os.path.exists(sub_path):
                     for f_name in os.listdir(sub_path):
-                        # 파일명: 실제 경로 매핑 저장
                         self.file_to_path[f_name] = os.path.join(sub_path, f_name)
 
-            # 3. 폴더에 존재하는 파일들만 JSON 데이터에서 필터링
-            # JSON의 'name'이 실제 폴더 안에 존재하는 경우만 self.data에 유지
             self.data = [item for item in full_data if item.get('name') in self.file_to_path]
-            
-            print(f"Total train images found in folders: {len(self.file_to_path)}")
-            print(f"Total valid annotations matched: {len(self.data)}")
-            
+
         elif self.mode == 'val':
             if os.path.exists(self.img_dir):
                 for f_name in os.listdir(self.img_dir):
                     self.file_to_path[f_name] = os.path.join(self.img_dir, f_name)
 
             self.data = [item for item in full_data if item.get('name') in self.file_to_path]
+
+        print(f"Total {mode} images found in folders: {len(self.file_to_path)}")
+        print(f"Total valid {mode} annotations matched: {len(self.data)}")
 
     def __len__(self):
         return len(self.data)
@@ -106,8 +100,7 @@ class BDDDataset(Dataset):
         g = np.exp(-(x**2 + y**2) / (2 * sigma**2))
         return g
 
-
-    def _read_image_rgb(self, img_path: str):
+    def _read_image_rgb(self, img_path):
         image_bgr = cv2.imread(img_path)
         if image_bgr is None:
             raise OSError(f"Failed to decode image: {img_path}")
@@ -118,7 +111,6 @@ class BDDDataset(Dataset):
             item = self.data[idx]
             name = item.get('name')
             
-            # 이미 __init__에서 검증된 경로를 즉시 가져옴
             img_path = self.file_to_path.get(name)
             if not img_path:
                 raise FileNotFoundError(f"Image {name} not found in pre-scanned paths.")
@@ -133,7 +125,7 @@ class BDDDataset(Dataset):
             for obj in item.get('labels', []):
                 if 'box2d' in obj and obj['category'] in self.cat_to_id:
                     b = obj['box2d']
-                    # 중심점 및 크기 정규화 계산
+                    # ctx, cty: center of bbox, bw, bh: width and height of bbox
                     ctx = (b['x1'] + b['x2']) / 2 / W
                     cty = (b['y1'] + b['y2']) / 2 / H
                     bw = abs(b['x1'] - b['x2']) / W
@@ -156,48 +148,54 @@ class BDDDataset(Dataset):
         else:
             image = torch.from_numpy(image.transpose(2, 0, 1)).float() / 255.0
 
-        scale_ratios = {8: [0, 10], 16: [4, 18], 32: [8, 1000]} # 이거 일부러 이랬긴 했거든 근데 이게 이점이 있을까?
-        results = {}
+        # CHECK IF TRAINING IS NOT DOING WELL
+        self.scale_ratios = {8: [0, 15], 16: [6, 24], 32: [10, 1000]} # possibly inappropriate size.
+        target = {}
 
-
-        if self.mode == 'train':
+        if self.mode == 'train': # convert absolute coordinates to relative coordinates for bboxes.
             for s in self.strides:
                 _, H, W = image.shape
-                h_f, w_f = math.ceil(H / s), math.ceil(W / s)
+                h_f, w_f = math.ceil(H / s), math.ceil(W / s) # width and height of the feature map.
+                # example: h_f, w_f = 40x23(P5), 80x45(P4), 160x90(P3) for the raw image of 1280x720 .
+                
                 hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
                 regs = np.zeros((4, h_f, w_f), dtype=np.float32)
                 mask = np.zeros((1, h_f, w_f), dtype=np.uint8)
                 
-                current_range = scale_ratios[s]
+                current_range = self.scale_ratios[s]
+
                 for i, box in enumerate(bboxes):
                     ctx_norm, cty_norm, w_norm, h_norm = box
-                    # 피처맵 크기에 맞게 스케일 조정
+                    
+                    # coords. in the feature map.
                     f_ctx, f_cty = ctx_norm * w_f, cty_norm * h_f
                     f_w, f_h = w_norm * w_f, h_norm * h_f
 
                     if not (current_range[0] <= np.sqrt(f_w * f_h) < current_range[1]):
+                        # if not the size of interesting
+                        # 이거 대체 왜 있는거임?
                         continue
 
-                    radius = max(1, int(self._gaussian_radius((f_h, f_w))))
+                    radius = max(1, int(self._gaussian_radius((f_h, f_w)))) # CHECK IF TRAINING IS NOT DOING WELL
                     ix, iy = int(f_ctx), int(f_cty)
                     
                     if 0 <= ix < w_f and 0 <= iy < h_f:
-                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
+                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius) # CHECK IF TRAINING IS NOT DOING WELL
                         regs[0, iy, ix] = f_w
                         regs[1, iy, ix] = f_h
                         regs[2, iy, ix] = f_ctx - ix
                         regs[3, iy, ix] = f_cty - iy
                         mask[0, iy, ix] = 1
 
-                results[f'hm_s{s}'] = torch.from_numpy(hm)
-                results[f'reg_s{s}'] = torch.from_numpy(regs)
-                results[f'mask_s{s}'] = torch.from_numpy(mask)
+                target[f'hm_s{s}'] = torch.from_numpy(hm)
+                target[f'reg_s{s}'] = torch.from_numpy(regs)
+                target[f'mask_s{s}'] = torch.from_numpy(mask)
 
-            return image, results
-        else:
+        else: # no need hm, reg, mask for validation and test.
             target = {
                 "boxes": torch.as_tensor(bboxes, dtype=torch.float32),
                 "labels": torch.as_tensor(class_labels, dtype=torch.int64),
                 "image_name": self.data[idx].get('name')
             }
-            return image, target
+        
+        return image, target

@@ -15,16 +15,13 @@ class MultiLevelDetectionLoss(nn.Module):
         total_cls_loss, total_reg_loss, total_num_pos = 0, 0, 0
         
         for i in range(3):
-            # pred_hm, pred_reg = predictions[i]
-            # gt_hm, gt_reg, masks = targets[i]
-            # 
-            # # 1. Classification (Focal Loss)
+            # Positive sample 개수
             mask = masks[i]
             num_pos = mask.float().sum()
             total_num_pos += num_pos
             
-            # pred_hm = torch.clamp(pred_hm, min=1e-4, max=1-1e-4)
-            pred_hm = torch.clamp(pred_hms[i], min=1e-12, max=1-1e-12)
+            # Classification (Focal Loss)
+            pred_hm = torch.clamp(pred_hms[i], min=1e-6, max=1-1e-6)
             
             pos_masks = (gt_hms[i] == 1.0).float()
             neg_masks = (gt_hms[i] < 1.0).float()
@@ -35,32 +32,20 @@ class MultiLevelDetectionLoss(nn.Module):
             # 누적할 때 마이너스를 붙여서 양수로 저장
             total_cls_loss += -(pos_loss.sum() + neg_loss.sum())
             
-            # 2. Regression (GIoU)
-            # masks_bool = masks.squeeze(1) > 0.5
-            # if masks_bool.any():
-            #     batch_idx, y_idx, x_idx = torch.where(masks_bool)
-            #     p_regs = pred_reg.permute(0, 2, 3, 1)[masks_bool]
-            #     t_regs = gt_reg.permute(0, 2, 3, 1)[masks_bool]
-            #     p_boxes = decode_to_bbox(p_regs, x_idx, y_idx)
-            #     t_boxes = decode_to_bbox(t_regs, x_idx, y_idx)
+            # 2. Regression (CIoU)
             if pred_boxes[i].numel() > 0:
-                total_reg_loss += complete_box_iou_loss( # 함수명 변경
+                reg_loss_sum = complete_box_iou_loss(
                     pred_boxes[i], 
                     gt_boxes[i], 
-                    reduction='mean'
+                    reduction='sum'
                 )
-            """if pred_boxes[i].numel() > 0:
-                total_reg_loss += generalized_box_iou_loss(
-                    pred_boxes[i], 
-                    gt_boxes[i], 
-                    reduction='mean'
-                )"""
-            # total_reg_loss += generalized_box_iou_loss(pred_boxes[i], gt_boxes[i], reduction='sum')
-
+                total_reg_loss += reg_loss_sum
+                
         total_num_pos = torch.clamp(total_num_pos, min=1.0)
         
         cls_loss = total_cls_loss / total_num_pos
         reg_loss = self.lambda_ * total_reg_loss
-        tot_loss = (total_cls_loss / total_num_pos) + (self.lambda_ * total_reg_loss)
+        
+        tot_loss = cls_loss + (self.lambda_ * reg_loss)
         
         return tot_loss, cls_loss, reg_loss

@@ -1,7 +1,7 @@
 import torch
 from torch import amp
 from lib.utils.utils import post_process
-
+"""
 @torch.no_grad()
 def validate_one_epoch(backbone, head, loader, criterion, device, metrics, epoch):
     backbone.eval()
@@ -62,7 +62,7 @@ def validate_one_epoch(backbone, head, loader, criterion, device, metrics, epoch
     stats = metrics.compute()
     
     return avg_val_loss, stats
-
+"""
 
 @torch.no_grad()
 def validate_with_map(backbone, head, loader, device, metric, epoch):
@@ -72,7 +72,7 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
     
     strides = [8, 16, 32]
 
-    for imgs, targets in loader: # Dataset 수정으로 targets가 단순해짐
+    for imgs, targets in loader:
         imgs = imgs.to(device)
         
         p3, p4, p5 = backbone(imgs)
@@ -87,7 +87,7 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
             single_hms = [hm[b_idx:b_idx+1] for hm in pred_hms]
             single_regs = [reg[b_idx:b_idx+1] for reg in pred_regs]
             
-            # 히트맵에서 최종 박스 추출[cite: 8]
+            # 히트맵에서 최종 박스 추출
             decoded = post_process(single_hms, single_regs, strides, threshold=0.1)
             
             batch_preds.append({
