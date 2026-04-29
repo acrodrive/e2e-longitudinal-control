@@ -12,7 +12,7 @@ class Config:
 
     JSON_PATH = "datasets/archive/bdd100k_labels_release/bdd100k/labels/bdd100k_labels_images_train.json"
     IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/train"
-    CHECKPOINT_PATH = checkpoints/last_model.pth.tar
+    CHECKPOINT_PATH = "checkpoints/last_model.pth.tar"
 
     img_W = 1280
     img_H = 720
