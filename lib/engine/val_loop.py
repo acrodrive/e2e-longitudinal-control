@@ -98,10 +98,10 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
 
         # 정답값 변환 (Dataset에서 이미 처리됨)
         batch_targets = []
-        for b_idx in range(len(targets["boxes"])):
+        for t in targets: # 리스트 내부의 개별 타겟 딕셔너리에 접근
             batch_targets.append({
-                "boxes": targets["boxes"][b_idx].to(device),
-                "labels": targets["labels"][b_idx].to(device)
+                "boxes": t["boxes"].to(device),
+                "labels": t["labels"].to(device)
             })
 
         metric.update(batch_preds, batch_targets)

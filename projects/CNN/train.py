@@ -12,7 +12,7 @@ from lib.data.augmentation import get_train_transforms
 from lib.engine.train_loop import train_one_epoch
 from lib.engine.val_loop import validate_with_map
 from lib.utils.metrics import MetricsCalculator, MAPCalculator
-from lib.utils.utils import save_checkpoint, load_model_weights, collate_fn
+from lib.utils.utils import save_checkpoint, load_model_weights, collate_fn, collate_fn_for_validation
 
 def main():
     #region 1. 기본 설정
@@ -95,7 +95,7 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn, persistent_workers=True)
     
     val_dataset = BDDDataset(json_path=VAL_JSON_PATH, img_dir=VAL_IMG_DIR, transform=None, num_classes=num_classes, mode='val')
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=is_cuda, collate_fn=collate_fn_for_validation, persistent_workers=True)
 
     print(f"Starting training on {device} (FP16: {is_cuda})...")
 
