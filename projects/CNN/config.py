@@ -6,7 +6,7 @@ class Config:
     batch_size = 16
     lr = 1e-4
     weight_decay = 1e-4
-    epochs = 5
+    epochs = 10
 
     fpn_out_channels = 256
 
