@@ -93,7 +93,7 @@ def main():
 
     # 학습 루프
     for epoch in range(start_epoch, epochs):
-        avg_loss, stats = train_one_epoch(backbone, head, train_loader, criterion, optimizer, scaler, device, metrics, epoch, Config.epochs)
+        avg_loss, stats = train_one_epoch(backbone, head, train_loader, criterion, optimizer, scaler, device, metrics, epoch, start_epoch + Config.epochs)
         # 해결해야 할 문제: loss랑 metrics랑 지금 섞여있음. train.py, train_loop.py, loss.py에
         checkpoint_state = {
             'epoch': epoch + 1,
