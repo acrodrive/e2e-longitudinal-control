@@ -1,4 +1,4 @@
 .DS_Store
-./wandb
+wandb
 **/__pycache__
 **/.DS_Store
