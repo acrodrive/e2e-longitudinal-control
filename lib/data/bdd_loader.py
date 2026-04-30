@@ -157,37 +157,41 @@ class BDDDataset(Dataset):
 
         # CHECK IF TRAINING IS NOT DOING WELL
         self.scale_ratios = {8: [0, 15], 16: [6, 24], 32: [10, 1000]} # possibly inappropriate size.
+        
         target = {}
+        _, H, W = image.shape
 
         if self.mode == 'train': # convert absolute coordinates to relative coordinates for bboxes.
             for s in self.strides:
-                _, H, W = image.shape
-                h_f, w_f = math.ceil(H / s), math.ceil(W / s) # width and height of the feature map.
-                # example: h_f, w_f = 40x23(P5), 80x45(P4), 160x90(P3) for the raw image of 1280x720 .
-                
+                h_f, w_f = math.ceil(H / s), math.ceil(W / s)
                 hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)
                 regs = np.zeros((4, h_f, w_f), dtype=np.float32)
                 mask = np.zeros((1, h_f, w_f), dtype=np.uint8)
                 
-                current_range = self.scale_ratios[s]
+                current_range = self.scale_ranges[s]
 
                 for i, box in enumerate(bboxes):
+                    # box: [ctx, cty, bw, bh] (0~1 scale)
                     ctx_norm, cty_norm, w_norm, h_norm = box
                     
-                    # coords. in the feature map.
+                    # 원본 이미지 기준 크기 계산
+                    w_raw, h_raw = w_norm * W, h_norm * H
+                    obj_size = np.sqrt(w_raw * h_raw)
+
+                    # 현재 스트라이드(레벨)가 담당할 크기인지 확인
+                    if not (current_range[0] <= obj_size < current_range[1]):
+                        continue
+
+                    # 해당 레벨의 피처맵 좌표로 변환[cite: 7]
                     f_ctx, f_cty = ctx_norm * w_f, cty_norm * h_f
                     f_w, f_h = w_norm * w_f, h_norm * h_f
 
-                    if not (current_range[0] <= np.sqrt(f_w * f_h) < current_range[1]):
-                        # if not the size of interesting
-                        # 이거 대체 왜 있는거임?
-                        continue
-
-                    radius = max(1, int(self._gaussian_radius((f_h, f_w)))) # CHECK IF TRAINING IS NOT DOING WELL
+                    radius = max(1, int(self._gaussian_radius((f_h, f_w))))
                     ix, iy = int(f_ctx), int(f_cty)
                     
                     if 0 <= ix < w_f and 0 <= iy < h_f:
-                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius) # CHECK IF TRAINING IS NOT DOING WELL
+                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
+                        # Regression Target: 피처맵 스케일의 w, h와 중심점 오프셋[cite: 7]
                         regs[0, iy, ix] = f_w
                         regs[1, iy, ix] = f_h
                         regs[2, iy, ix] = f_ctx - ix
