@@ -14,7 +14,7 @@ class Config:
     TRAIN_IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/train"
     VAL_JSON_PATH = "datasets/archive/bdd100k_labels_release/bdd100k/labels/bdd100k_labels_images_val.json"
     VAL_IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/val"
-    CHECKPOINT_PATH = None #"checkpoints/last_model.pth.tar"
+    CHECKPOINT_PATH = "checkpoints/last_model.pth.tar"
 
     img_W = 1280
     img_H = 720
