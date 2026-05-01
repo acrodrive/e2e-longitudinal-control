@@ -82,6 +82,10 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
             })
         if i % 100 == 0 and i != 0:
             print(f"[Epoch {epoch}/{epochs}] Batch: {i}/{len(loader)}")
+            wandb.log({
+                "train/heatmap_sample": [wandb.Image(collected_data['pred_hms'][0][0, 0].detach().cpu().numpy())],
+                "train/gt_heatmap_sample": [wandb.Image(collected_data['pred_hms'][0][0, 0].detach().cpu().numpy())]
+            })
 
     avg_loss = epoch_loss / len(loader)
     stats = metrics.compute()

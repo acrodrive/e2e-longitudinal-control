@@ -52,7 +52,7 @@ class BDDDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def _gaussian_radius(self, det_size, min_overlap=0.7):
+    def _gaussian_radius(self, det_size, min_overlap=0.4):
         height, width = det_size
 
         a1  = 1

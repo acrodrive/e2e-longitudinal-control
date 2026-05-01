@@ -102,7 +102,7 @@ def main():
         if epoch < 2:
             for param in backbone.parameters():
                 param.requires_grad = False
-            optimizer.param_groups[1]['lr'] = head_lr * 2 
+            optimizer.param_groups[1]['lr'] = head_lr * 1.3 
         else:
             for param in backbone.parameters():
                 param.requires_grad = True
