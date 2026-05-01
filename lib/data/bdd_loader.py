@@ -156,7 +156,11 @@ class BDDDataset(Dataset):
             image = torch.from_numpy(image.transpose(2, 0, 1)).float() / 255.0
 
         # CHECK IF TRAINING IS NOT DOING WELL
-        self.scale_ratios = {8: [0, 15], 16: [6, 24], 32: [10, 1000]} # possibly inappropriate size.
+        self.scale_ranges = {
+            8:  [0, 64],    # P3: 원거리/소형 (0~64px)
+            16: [64, 192],  # P4: 중거리 (64~192px)
+            32: [192, 2000] # P5: 근거리/대형 (192px 이상)
+        }
         
         target = {}
         _, H, W = image.shape
