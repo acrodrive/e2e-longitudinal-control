@@ -46,8 +46,8 @@ class MultiLevelDetectionLoss(nn.Module):
 
                 # (A) CIoU Loss
                 iou_loss = complete_box_iou_loss(
-                    decode_reg_to_bbox(p_reg),
-                    decode_reg_to_bbox(g_reg),
+                    decode_reg_to_bbox(p_reg, xx, yy),
+                    decode_reg_to_bbox(g_reg, xx, yy),
                     reduction='sum'
                 )
                 
