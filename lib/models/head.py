@@ -53,7 +53,7 @@ class DetectionHead(nn.Module):
         for cls_out, reg_out in [out_p3_raw, out_p4_raw, out_p5_raw]:
             # reg_out: [B, 4, H, W] -> (w, h, ox, oy)
             # w, h (채널 0, 1)에만 Softplus 또는 exp 적용하여 양수 보장
-            w_h = torch.exp(reg_out[:, :2, :, :]) # 음수 방지를 위해 모델 출력의 exponential 값이 w, h임
+            w_h = torch.exp(reg_out[:, :2, :, :]) # 음수 방지, 모델이 큰 수를 내보내는 경우 무한대에 가까운 값이 출력될 수 있다는 점을 인지해야 함
             offset = reg_out[:, 2:, :, :]
             reg_out = torch.cat([w_h, offset], dim=1)
             processed_outs.append((cls_out, reg_out))

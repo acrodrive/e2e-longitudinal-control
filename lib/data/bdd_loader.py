@@ -194,7 +194,7 @@ class BDDDataset(Dataset):
                     ix, iy = int(f_ctx), int(f_cty)
                     
                     if 0 <= ix < w_f and 0 <= iy < h_f:
-                        self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
+                        hm[int(class_labels[i])] = self._draw_gaussian(hm[int(class_labels[i])], (ix, iy), radius)
                         # Regression Target: 피처맵 스케일의 w, h와 중심점 오프셋[cite: 7]
                         regs[0, iy, ix] = f_w
                         regs[1, iy, ix] = f_h

@@ -2,12 +2,12 @@ import os
 import torch
 import torch.nn.functional as F
 
-def decode_to_bbox(regs, x_idx, y_idx):
+def decode_reg_to_bbox(regs, x_idx, y_idx):
     """
     모델의 출력값을 상응하는 좌표계의 [x1, y1, x2, y2]로 변환합니다.
     """
 
-    w = torch.clamp(regs[:, 0], min=1e-3) 
+    w = torch.clamp(regs[:, 0], min=1e-3)
     h = torch.clamp(regs[:, 1], min=1e-3)
     
     ox, oy = regs[:, 2], regs[:, 3]

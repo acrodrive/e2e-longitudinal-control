@@ -99,16 +99,6 @@ def main():
     print(f"Starting training on {device} (FP16: {is_cuda})...")
 
     for epoch in range(start_epoch, start_epoch + epochs):
-        if epoch < 2:
-            for param in backbone.parameters():
-                param.requires_grad = False
-            optimizer.param_groups[1]['lr'] = head_lr * 1.6
-        else:
-            for param in backbone.parameters():
-                param.requires_grad = True
-            optimizer.param_groups[0]['lr'] = backbone_lr
-            optimizer.param_groups[1]['lr'] = head_lr
-
         avg_loss = train_one_epoch(backbone, head, train_loader, criterion, optimizer, scheduler, scaler, device, metrics, epoch, start_epoch + Config.epochs)
         checkpoint_state = {
             'epoch': epoch + 1,
