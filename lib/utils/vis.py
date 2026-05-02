@@ -72,3 +72,29 @@ def visualize_predicted_heatmaps(image_rgb, pred_hms, strides):
 
     plt.tight_layout()
     return fig
+
+def tensor_to_image_rgb(img_tensor):
+    """
+    img_tensor [1, 3, H, W] 또는 [3, H, W]를 
+    시각화 가능한 image_rgb [H, W, 3] (numpy, uint8)로 변환합니다.
+    """
+    # 1. 배치 차원이 있다면 제거 [3, H, W]
+    if len(img_tensor.shape) == 4:
+        img_tensor = img_tensor.squeeze(0)
+
+    # 2. CPU로 이동 및 Numpy 변환
+    img_np = img_tensor.cpu().detach().numpy()
+
+    # 3. 차원 재배열: [C, H, W] -> [H, W, C]
+    img_np = img_np.transpose(1, 2, 0)
+
+    # 4. 역정규화 (Normalization의 역연산)
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    img_np = (img_np * std) + mean
+
+    # 5. 0~1 사이로 클리핑 후 0~255 uint8 변환
+    img_np = np.clip(img_np, 0, 1)
+    image_rgb = (img_np * 255).astype(np.uint8)
+
+    return image_rgb
