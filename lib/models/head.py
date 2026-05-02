@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+import torch.nn.functional as F
 
 class DetectionHead(nn.Module):
     def __init__(self, num_classes, fpn_channels=256):

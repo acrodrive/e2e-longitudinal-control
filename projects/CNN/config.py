@@ -5,7 +5,7 @@ class Config:
     num_classes = 10
     batch_size = 16
     lr = 1e-3 # 5e-4가 안정적
-    weight_decay = 1e-4 # 학습이 진행되고 나면 1e-3으로 낮추기
+    weight_decay = 1e-4 # 학습이 진행되고 나면 1e-3나 5e-4로 높이기
     epochs = 20
 
     fpn_out_channels = 256
@@ -14,7 +14,7 @@ class Config:
     TRAIN_IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/train"
     VAL_JSON_PATH = "datasets/archive/bdd100k_labels_release/bdd100k/labels/bdd100k_labels_images_val.json"
     VAL_IMG_DIR = "datasets/archive/bdd100k/bdd100k/images/100k/val"
-    CHECKPOINT_PATH = "checkpoints/last_model.pth.tar"
+    CHECKPOINT_PATH = None #"checkpoints/last_model.pth.tar"
 
     img_W = 1280
     img_H = 720
