@@ -107,7 +107,7 @@ def main():
     for epoch in range(start_epoch, start_epoch + epochs):
         if epoch == 10:
             print(f"\n[Scheduler] Epoch {epoch}: Augmentation strength reduced to 'light'.")
-            train_loader.dataset.transform = get_light_train_transforms(Config.bbox_format)
+            train_loader.dataset.transform = get_light_train_transforms(bbox_format=Config.bbox_format)
             
         avg_loss = train_one_epoch(backbone, head, train_loader, criterion, optimizer, scheduler, scaler, device, metrics, epoch, start_epoch + Config.epochs)
         checkpoint_state = {

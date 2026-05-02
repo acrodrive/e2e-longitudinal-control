@@ -7,6 +7,7 @@ class Config:
     lr = 1e-3 # 5e-4가 안정적
     weight_decay = 1e-4 # 학습이 진행되고 나면 1e-3나 5e-4로 높이기
     epochs = 20
+    mAP_threshold = 0.05
 
     fpn_out_channels = 256
 

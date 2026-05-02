@@ -2,6 +2,7 @@ import wandb
 import torch
 from torch import amp
 from lib.utils.utils import post_process
+from lib.utils.config import Config
 
 @torch.no_grad()
 def validate_with_map(backbone, head, loader, device, metric, epoch):
@@ -26,8 +27,7 @@ def validate_with_map(backbone, head, loader, device, metric, epoch):
             single_hms = [hm[b_idx:b_idx+1] for hm in pred_hms]
             single_regs = [reg[b_idx:b_idx+1] for reg in pred_regs]
             
-            # 히트맵에서 최종 박스 추출
-            decoded_batch = post_process(single_hms, single_regs, strides, threshold=0.3)
+            decoded_batch = post_process(single_hms, single_regs, strides, threshold=Config.mAP_threshold)
             decoded = decoded_batch[0]
             
             if len(decoded) > 0:
