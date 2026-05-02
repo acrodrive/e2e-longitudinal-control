@@ -21,6 +21,15 @@ def get_train_transforms(img_size=(1280, 720), bbox_format='yolo'):
         ToTensorV2(),
     ], bbox_params=A.BboxParams(format=bbox_format, label_fields=['class_labels'], clip=True, min_visibility=0.3))
 
+def get_light_train_transforms(img_size=(1280, 720), bbox_format='yolo'):
+    return A.Compose([
+        A.HorizontalFlip(p=0.5),
+        A.PadIfNeeded(min_height=img_size[1], min_width=img_size[0], border_mode=0, p=1.0),
+        A.RandomCrop(height=img_size[1], width=img_size[0], p=1.0),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),
+    ], bbox_params=A.BboxParams(format=bbox_format, label_fields=['class_labels'], clip=True))
+
 def get_val_transforms(bbox_format='yolo'): # 주로 val과 inference는 transform이 사용되지 않음
     return A.Compose([
         # 이미지 크기를 고정하기 위한 A.Resize(height, width) 추가 권장?
