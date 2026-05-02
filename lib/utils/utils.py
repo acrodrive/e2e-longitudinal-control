@@ -114,7 +114,7 @@ def get_local_maximum(heat, kernel=3):
     keep = (hmax == heat).float()
     return heat * keep
 
-def post_process(pred_hms, pred_regs, strides, threshold=0.3, top_k=100):
+def post_process(pred_hms, pred_regs, strides, threshold=0.05, top_k=100):
     batch_size = pred_hms[0].shape[0]
     device = pred_hms[0].device
     all_detections = [[] for _ in range(batch_size)] # CAUTION: if len(pred_hms) == 1, access retval with [0]
