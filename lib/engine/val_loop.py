@@ -2,7 +2,7 @@ import wandb
 import torch
 from torch import amp
 from lib.utils.utils import post_process
-from lib.utils.config import Config
+from projects.CNN.config import Config
 
 @torch.no_grad()
 def validate_with_map(backbone, head, loader, device, metric, epoch):
