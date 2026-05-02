@@ -79,7 +79,7 @@ def main():
     # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer, 
-        T_0=5, 
+        T_0=10, 
         T_mult=2, 
         eta_min=1e-6
     )
@@ -105,9 +105,9 @@ def main():
     print(f"Starting training on {device} (FP16: {is_cuda})...")
 
     for epoch in range(start_epoch, start_epoch + epochs):
-        if epoch == 10:
-            print(f"\n[Scheduler] Epoch {epoch}: Augmentation strength reduced to 'light'.")
-            train_loader.dataset.transform = get_light_train_transforms(bbox_format=Config.bbox_format)
+        #if epoch == 10:
+        #    print(f"\n[Scheduler] Epoch {epoch}: Augmentation strength reduced to 'light'.")
+        #    train_loader.dataset.transform = get_light_train_transforms(bbox_format=Config.bbox_format)
             
         avg_loss = train_one_epoch(backbone, head, train_loader, criterion, optimizer, scheduler, scaler, device, metrics, epoch, start_epoch + Config.epochs)
         checkpoint_state = {
