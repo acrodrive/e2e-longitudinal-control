@@ -60,7 +60,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
                 if mask_bool.any():
                     active_pred_reg = pred_reg.permute(0, 2, 3, 1)[mask_bool]
                     active_gt_reg = gt_reg.permute(0, 2, 3, 1)[mask_bool]
-                    metrics.update_mae(active_pred_reg, active_gt_reg, 8*(2**j)) # TODO 이 함수 점검
+                    metrics.update_mae(active_pred_reg, active_gt_reg, 8*(2**j))
 
                 collected_data['pred_hms'].append(pred_hm)
                 collected_data['gt_hms'].append(gt_hm)
@@ -87,6 +87,10 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
             optimizer.step()
         
         epoch_loss += tot_loss.item()
+        
+        if not torch.isfinite(tot_loss):
+            print("loss_anomaly": 1, "step": epoch * len(loader) + i)
+            wandb.log({"loss_anomaly": 1, "step": epoch * len(loader) + i})
 
         if i % 10 == 0:
             wandb.log({
@@ -94,8 +98,8 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
                 "class_loss": cls_loss.item(),
                 "reg_loss": reg_loss.item(),
                 "iou_loss": iou_loss.item(),
-                "offset_loss": offset_loss.item(),
-                "global_step": epoch * len(loader) + i
+                "offset_loss": offset_loss.item()
+                # "global_step": epoch * len(loader) + i
             })
         if i % 100 == 0 and i != 0:
             print(f"[Epoch {epoch}/{epochs}] Batch: {i}/{len(loader)}")

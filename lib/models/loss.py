@@ -25,6 +25,7 @@ class MultiLevelDetectionLoss(nn.Module):
             pred_hm = pred_hms[i]
             pred_hm = torch.clamp(pred_hm, min=1e-6, max=1-1e-6)
             
+            # 이것은 약간 빗겨나가도 정답으로 인정해주기 위함. 반면 mask를 그대로 사용하면 거의 다 밎춰도 손실이 엄청남
             pos_masks = (gt_hms[i] == 1.0).float()
             neg_masks = (gt_hms[i] < 1.0).float()
 
