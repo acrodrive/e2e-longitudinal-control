@@ -66,9 +66,11 @@ Where:
 
 ### 3.3.2 CIoU  
 CIoU Loss는 3개의 항의 합으로 구성되어 있는데, 중첩 영역($1 - IoU$), 중심점 거리 $\rho$와 종횡비 $\alpha v$의 합으로 구성되어 있다.
+
 $$
 L_{CIoU} = 1 - \text{IoU} + \frac{\rho^2(b, b^{gt})}{c^2} + \alpha v
 $$  
+
 Where:
 - $\rho^2(b, b^{gt})$ is the euclide distance between gt and pred.  
 - c: 두 박스를 모두 포함하는 최소 폐쇄 박스의 대각선 길이  
@@ -77,6 +79,7 @@ Where:
 
 ### 3.3.3 Offset L1  
 중심점 거리에 대한 오차로 CIoU와 달리 히트맵의 해상도 한계로 발생하는 양자화 오류(Quantization error)를 줄이기 위한 미시적인 보정을 담당한다.
+
 $$
 L_{offset} = \frac{1}{N}\sum_{i=1}^N|o_i-\hat o_i|
 $$
