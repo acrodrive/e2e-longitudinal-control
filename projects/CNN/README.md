@@ -50,9 +50,11 @@ $$
 $$  
 L_{pos}=(1-p_{lcyx})^\alpha \cdot \log(p_{lcyx})  
 $$  
+
 $$
 L_{neg}=(1-p_{lcyx}) \cdot p_{lcyx}^\alpha
-$$
+$$  
+
 $$
 L_{cls}=-\frac{1}{N} \sum_{l=1}^3 \sum_{c, y, x}(L_{pos}+L_{neg})
 $$  
