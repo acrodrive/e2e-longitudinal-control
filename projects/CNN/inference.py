@@ -14,7 +14,6 @@ def main():
     
     # [사용자 설정 필요] 경로 지정
     checkpoint_path = "checkpoints/last_model.pth.tar" 
-    image_path = "test_image.jpg"
     confidence_threshold = 0.3
     
     print(f"Loading model on {device}...")
@@ -41,48 +40,22 @@ def main():
         name = k.replace("_orig_mod.", "")
         new_head_state_dict[name] = v
     head.load_state_dict(new_head_state_dict)
-    
-    """# 1. 모델 초기화 및 가중치 로드
-    backbone = ResNetFPN(out_channels=Config.fpn_out_channels).to(device)
-    head = DetectionHead(num_classes=Config.num_classes).to(device)
-    
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}")
-        
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    backbone.load_state_dict(checkpoint['backbone_state_dict'])
-    head.load_state_dict(checkpoint['head_state_dict'])"""
-    
+
     backbone.eval()
     head.eval()
     
     print("Loading Dataset ...")
-    TRAIN_JSON_PATH = Config.TRAIN_JSON_PATH
-    TRAIN_IMG_DIR = Config.TRAIN_IMG_DIR
-    train_dataset = BDDDataset(json_path=TRAIN_JSON_PATH, img_dir=TRAIN_IMG_DIR, transform=None, num_classes=Config.num_classes, mode='train')
+    #TRAIN_JSON_PATH = Config.TRAIN_JSON_PATH
+    #TRAIN_IMG_DIR = Config.TRAIN_IMG_DIR
+    VAL_JSON_PATH = Config.VAL_JSON_PATH
+    VAL_IMG_DIR = Config.VAL_IMG_DIR
+    inf_transform = get_inference_transforms()
+    train_dataset = BDDDataset(json_path=VAL_JSON_PATH, img_dir=VAL_IMG_DIR, transform=inf_transform, num_classes=Config.num_classes, mode='inference')
     print("Dataset loaded")
 
-    img_tensor, target = train_dataset[0]
+    img_tensor, target = train_dataset[3]
     image_rgb = tensor_to_image_rgb(img_tensor)
     img_tensor = img_tensor.unsqueeze(0).to(device)
-    
-    #image_np = image_tensor.permute(1, 2, 0).cpu().numpy()
-    #image_show = (image_np * 255).astype(np.uint8)
-    
-    #visualize_targets(image_show, target, strides)
-
-    
-    """# 2. 이미지 로드 및 전처리
-    print(f"Processing image {image_path}...")
-    image_bgr = cv2.imread(image_path)
-    if image_bgr is None:
-        raise FileNotFoundError(f"Image not found at {image_path}")
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    
-    # Inference용 Transform 적용 (Normalize 및 ToTensor)[cite: 1]
-    transform = get_inference_transforms()
-    transformed = transform(image=image_rgb)
-    img_tensor = transformed['image'].unsqueeze(0).to(device) # [1, C, H, W] 배치 차원 추가"""
 
     gt_hms = []
     gt_regs = []
