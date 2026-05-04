@@ -58,6 +58,7 @@ $$
 $$
 L_{cls}=-\frac{1}{N} \sum_{l=1}^3 \sum_{c, y, x}(L_{pos}+L_{neg})
 $$  
+
 Where:  
 - $p$ represents the propability of each class of the pixel, $p \in \mathbb{R}^{num_class}, p \in [0, 1]$
 - $l$ is the index of the bunch of the feature maps. (e.g. l == 1 corresponds to P3, ...)
