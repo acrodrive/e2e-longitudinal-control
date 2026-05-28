@@ -31,7 +31,7 @@ def main():
     backbone.eval()
     head.eval()
 
-    # 3. 데이터셋 및 데이터로더 설정 (shuffle은 False로 변경)
+    # 3. 데이터셋 및 데이터로더 설정
     val_dataset = BDDDataset(
         json_path=VAL_JSON_PATH, 
         img_dir=VAL_IMG_DIR, 
@@ -55,7 +55,6 @@ def main():
         metrics_val.reset()
 
     strides = [8, 16, 32]
-
     total_time = 0.0
     num_samples = 0
 
@@ -63,41 +62,42 @@ def main():
     print("\nStarting inference on validation set...")
     with torch.no_grad():
         for images, targets in val_loader:
-            # 리스트 형태의 텐서 패킹 처리 혹은 배치 텐서 이동
-            if isinstance(images, list):
-                images = [img.to(device) for img in images]
-            else:
-                images = images.to(device)
-                batch_size = images.size(0)
+            images = images.to(device)
+            batch_size = images.size(0)
                 
-            # --- [시간 측정 시작] ---
+            # --- [순수 모델 연산 시간 측정 시작] ---
             if device.type == 'cuda':
                 torch.cuda.synchronize()
             start_time = time.perf_counter()
             
-            # 모델 예측 (FPN 특징 추출 -> Detection Head 통과)
-            features = backbone(images)
-            pred_hms, pred_regs = head(features)
+            # FPN 특징 추출 및 멀티레벨 Detection Head 연산
+            p3, p4, p5 = backbone(images)
+            preds = head(p3, p4, p5)
             
-            # --- [시간 측정 종료] ---
             if device.type == 'cuda':
                 torch.cuda.synchronize()
             end_time = time.perf_counter()
+            # --- [순수 모델 연산 시간 측정 종료] ---
             
-            # 배치 시간 누적
+            # 배치 시간 및 샘플 수 누적
             total_time += (end_time - start_time)
             num_samples += batch_size
             
+            # 각 피처맵 레벨에서 hm과 reg 분리 추출
+            pred_hms = [p[0] for p in preds]
+            pred_regs = [p[1] for p in preds]
+            
+            # 예측값 변환 후처리 (로컬 맥시멈 및 bboxes 복원)
             all_detections = post_process(
                 pred_hms, 
                 pred_regs, 
                 strides=strides, 
-                threshold=0.05, 
+                threshold=Config.mAP_threshold,
                 top_k=100
             )
             preds_metric = convert_to_metric_format(all_detections, device)
             
-            # 4. 정답(targets) 데이터를 GPU로 이동
+            # 정답(targets) 데이터를 지표 연산 장치로 이동
             targets_metric = []
             for t in targets:
                 targets_metric.append({
@@ -105,24 +105,26 @@ def main():
                     "labels": t["labels"].to(device)
                 })
                 
-            # 5. 지표 업데이트
+            # 최종 지표 계산기 업데이트
             metrics_val.update(preds_metric, targets_metric)
 
+    # 6. 최종 지표 결과 출력
     print("\n" + "="*40)
     print("             EVALUATION REPORT          ")
     print("="*40)
 
-    # 1) 평균 추론 시간 출력
+    # 1) 평균 추론 시간 출력 (이미지 1장당 소요 밀리초)
     avg_inference_time = (total_time / num_samples) * 1000
     print(f"● Average Inference Time : {avg_inference_time:.2f} ms / image")
 
-    # 2) mAP 지표 계산 및 출력
+    # 2) 종합 mAP 지표 계산 및 출력
     results = metrics_val.compute()
     print(f"● mAP (@[0.5:0.95])      : {results['map'].item():.4f}")
     print(f"● mAP50                  : {results['map_50'].item():.4f}")
+    print(f"(= mAP50은 뒤에 숫자가 붙지 않는 일반 mAP와 달리 IoU 임계값 0.5 고정 지표입니다.)")
     print(f"● mAP75                  : {results['map_75'].item():.4f}")
 
-    # 3) 객체별 AP50 출력
+    # 3) 객체별(클래스별) AP50 출력
     id_to_cat = {0: 'pedestrian', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
                 5: 'bus', 6: 'truck', 7: 'traffic light', 8: 'traffic sign', 9: 'train'}
 
@@ -135,41 +137,6 @@ def main():
         else:
             print(f"  - {class_name:15s}: No Ground Truth")
     print("="*40)
-
-    # # 6. 최종 지표 계산 및 결과 출력
-    # print("\n" + "="*30)
-    # print("       FINAL TEST RESULTS       ")
-    # print("="*30)
-    # 
-    # # MAPCalculator의 최종 계산 메서드를 호출합니다.
-    # # 만약 기존 val_loop 내부에서 다른 방식으로 출력하고 있다면 해당 객체의 동작에 맞게 호출 방식을 조정할 수 있습니다.
-    # results = metrics_val.compute()
-    # 
-    # # 1) 전체 종합 mAP 출력
-    # print(f"mAP (@[0.5:0.95]): {results['map'].item():.4f}")
-    # print(f"mAP50:             {results['map_50'].item():.4f}")
-    # print(f"mAP75:             {results['map_75'].item():.4f}")
-# 
-    # """# 2) 객체별(클래스별) AP 출력
-    # # bdd_loader.py의 cat_to_id 역매핑 활용
-    # id_to_cat = {0: 'pedestrian', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
-    #             5: 'bus', 6: 'truck', 7: 'traffic light', 8: 'traffic sign', 9: 'train'}
-# 
-    # print("\n--- Per-Class AP50 ---")
-    # per_class_ap = results['map_per_class']  # 클래스별 AP 텐서 (일반적으로 IoU=0.5 기준)
-    # for class_id, ap_value in enumerate(per_class_ap):
-    #     class_name = id_to_cat.get(class_id, f"Class_{class_id}")
-    #     # 데이터셋에 해당 클래스가 없어서 계산되지 않은 경우 -1이 들어있을 수 있습니다.
-    #     if ap_value >= 0:
-    #         print(f" - {class_name:15s}: {ap_value.item():.4f}")
-    #     else:
-    #         print(f" - {class_name:15s}: No Ground Truth or Not Evaluated")"""
-    # 
-    # if isinstance(results, dict):
-    #     for metric_name, score in results.items():
-    #         print(f"{metric_name}: {score}")
-    # else:
-    #     print("Evaluation finished. Please check the standard output or logs from MAPCalculator.")
 
 if __name__ == "__main__":
     main()
