@@ -39,7 +39,7 @@ class BDDDataset(Dataset):
 
             self.data = [item for item in full_data if item.get('name') in self.file_to_path]
 
-        elif self.mode == 'val' or 'inference':
+        elif self.mode == 'val' or self.mode == 'inference':
             if os.path.exists(self.img_dir):
                 for f_name in os.listdir(self.img_dir):
                     self.file_to_path[f_name] = os.path.join(self.img_dir, f_name)
@@ -126,7 +126,7 @@ class BDDDataset(Dataset):
                 if 'box2d' in obj and obj['category'] in self.cat_to_id:
                     b = obj['box2d']
                     # ctx, cty: center of bbox, bw, bh: width and height of bbox
-                    if self.mode == 'train' or 'inference':
+                    if self.mode == 'train' or self.mode == 'inference':
                         ctx = (b['x1'] + b['x2']) / 2 / W
                         cty = (b['y1'] + b['y2']) / 2 / H
                         bw = abs(b['x1'] - b['x2']) / W
@@ -166,7 +166,7 @@ class BDDDataset(Dataset):
         target = {}
         _, H, W = image.shape
 
-        if self.mode == 'train' or 'inference': # convert absolute coordinates to relative coordinates for bboxes.
+        if self.mode == 'train' or self.mode == 'inference': # convert absolute coordinates to relative coordinates for bboxes.
             for s in self.strides:
                 h_f, w_f = math.ceil(H / s), math.ceil(W / s)
                 hm = np.zeros((self.num_classes, h_f, w_f), dtype=np.float32)

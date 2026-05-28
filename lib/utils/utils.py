@@ -61,7 +61,7 @@ def load_model_weights(backbone, head, optimizer, scaler, checkpoint_path):
         start_epoch = checkpoint['epoch']
         backbone.load_state_dict(checkpoint['backbone_state_dict'])
         head.load_state_dict(checkpoint['head_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if optimizer is not None: optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # Scaler 상태도 복구하여 학습 연속성 유지
         if 'scaler_state_dict' in checkpoint and scaler is not None:
             scaler.load_state_dict(checkpoint['scaler_state_dict'])
@@ -171,3 +171,31 @@ def post_process(pred_hms, pred_regs, strides, threshold=0.05, top_k=100):
                 })
                 
     return all_detections
+
+def convert_to_metric_format(all_detections, device):
+    """
+    post_process의 출력을 MAPCalculator(TorchMetrics) 포맷으로 변환합니다.
+    """
+    formatted_preds = []
+    
+    for img_dets in all_detections:
+        if len(img_dets) == 0:
+            # 검출된 객체가 없는 경우 빈 텐서 처리
+            formatted_preds.append({
+                "boxes": torch.empty((0, 4), device=device),
+                "scores": torch.empty((0,), device=device),
+                "labels": torch.empty((0,), dtype=torch.long, device=device)
+            })
+        else:
+            # 개별 딕셔너리 리스트를 하나의 텐서로 묶기
+            boxes = torch.stack([d['box'] for d in img_dets]).to(device)
+            scores = torch.stack([d['score'] for d in img_dets]).to(device)
+            labels = torch.stack([d['class_id'] for d in img_dets]).long().to(device)
+            
+            formatted_preds.append({
+                "boxes": boxes,
+                "scores": scores,
+                "labels": labels
+            })
+            
+    return formatted_preds
