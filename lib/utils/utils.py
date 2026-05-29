@@ -180,17 +180,21 @@ def convert_to_metric_format(all_detections, device):
     
     for img_dets in all_detections:
         if len(img_dets) == 0:
-            # 검출된 객체가 없는 경우 빈 텐서 처리
             formatted_preds.append({
                 "boxes": torch.empty((0, 4), device=device),
                 "scores": torch.empty((0,), device=device),
                 "labels": torch.empty((0,), dtype=torch.long, device=device)
             })
         else:
-            # 개별 딕셔너리 리스트를 하나의 텐서로 묶기
             boxes = torch.stack([d['box'] for d in img_dets]).to(device)
             scores = torch.stack([d['score'] for d in img_dets]).to(device)
             labels = torch.stack([d['class_id'] for d in img_dets]).long().to(device)
+            
+            if len(scores) > 100:
+                topk_scores, topk_inds = torch.topk(scores, 100)
+                boxes = boxes[topk_inds]
+                scores = topk_scores
+                labels = labels[topk_inds]
             
             formatted_preds.append({
                 "boxes": boxes,
