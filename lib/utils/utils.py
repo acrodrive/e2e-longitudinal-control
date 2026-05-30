@@ -59,8 +59,13 @@ def load_model_weights(backbone, head, optimizer, scaler, checkpoint_path):
         print(f"=> Loading existing checkpoint: {checkpoint_path}")
         checkpoint = torch.load(checkpoint_path)
         start_epoch = checkpoint['epoch']
-        backbone.load_state_dict(checkpoint['backbone_state_dict'])
-        head.load_state_dict(checkpoint['head_state_dict'])
+        # 1. 가중치 키 이름에서 '_orig_mod.' 접두사를 제거하는 변환 작업 수행
+        backbone_state = {k.replace('_orig_mod.', ''): v for k, v in checkpoint['backbone_state_dict'].items()}
+        head_state = {k.replace('_orig_mod.', ''): v for k, v in checkpoint['head_state_dict'].items()}
+        
+        # 2. 이름이 수정된 가중치 딕셔너리를 모델에 주입
+        backbone.load_state_dict(backbone_state)
+        head.load_state_dict(head_state)
         if optimizer is not None: optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # Scaler 상태도 복구하여 학습 연속성 유지
         if 'scaler_state_dict' in checkpoint and scaler is not None:
@@ -190,11 +195,8 @@ def convert_to_metric_format(all_detections, device):
             scores = torch.stack([d['score'] for d in img_dets]).to(device)
             labels = torch.stack([d['class_id'] for d in img_dets]).long().to(device)
             
-            if len(scores) > 100:
-                topk_scores, topk_inds = torch.topk(scores, 100)
-                boxes = boxes[topk_inds]
-                scores = topk_scores
-                labels = labels[topk_inds]
+            # [수정 사항] 하드코딩된 상위 100개 강제 컷오프 조건문 블록을 완전히 제거합니다.
+            # torchmetrics가 모든 유의미한 후보를 전달받아 공정하게 최고 확신도 100개를 추리도록 유도합니다.
             
             formatted_preds.append({
                 "boxes": boxes,

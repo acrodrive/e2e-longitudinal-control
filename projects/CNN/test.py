@@ -49,10 +49,19 @@ def main():
         persistent_workers=False
     )
 
-    # 4. 지표 계산기 초기화
+    # 4. 지표 계산기 초기화 및 720p 커스텀 크기 조건 반영
     metrics_val = MAPCalculator(device=device)
     if hasattr(metrics_val, 'reset'):
         metrics_val.reset()
+
+    # 720p 조건(기본 COCO 스케일의 2배)에 따라 AP/AR의 체급 구별 기준 임계값을 64와 192로 변경
+    if hasattr(metrics_val, 'metric') and hasattr(metrics_val.metric, 'bbox_area_ranges'):
+        metrics_val.metric.bbox_area_ranges = {
+            "all": (float(0**2), float(1e5**2)),
+            "small": (float(0**2), float(64**2)),
+            "medium": (float(64**2), float(192**2)),
+            "large": (float(192**2), float(1e5**2)),
+        }
 
     strides = [8, 16, 32]
     total_time = 0.0
@@ -93,7 +102,7 @@ def main():
                 pred_regs, 
                 strides=strides, 
                 threshold=Config.mAP_threshold,
-                top_k=100
+                top_k=1000
             )
             preds_metric = convert_to_metric_format(all_detections, device)
             
@@ -123,8 +132,22 @@ def main():
     print(f"● mAP50                  : {results['map_50'].item():.4f}")
     print(f"(= mAP50은 뒤에 숫자가 붙지 않는 일반 mAP와 달리 IoU 임계값 0.5 고정 지표입니다.)")
     print(f"● mAP75                  : {results['map_75'].item():.4f}")
+    
+    # 720p 스케일(64, 192)이 반영된 크기별 mAP 출력
+    print(f"● mAP_S (Small)          : {results['map_small'].item():.4f}")
+    print(f"● mAP_M (Medium)         : {results['map_medium'].item():.4f}")
+    print(f"● mAP_L (Large)          : {results['map_large'].item():.4f}")
 
-    # 3) 객체별(클래스별) AP50 출력
+    # 3) 신규 mAR(Mean Average Recall) 지표 개수별/크기별 출력
+    print(f"\n● mAR (Average Recall):")
+    print(f"  - mAR@1                : {results['mar_1'].item():.4f}")
+    print(f"  - mAR@10               : {results['mar_10'].item():.4f}")
+    print(f"  - mAR@100              : {results['mar_100'].item():.4f}")
+    print(f"  - mAR_S (Small)        : {results['mar_small'].item():.4f}")
+    print(f"  - mAR_M (Medium)       : {results['mar_medium'].item():.4f}")
+    print(f"  - mAR_L (Large)        : {results['mar_large'].item():.4f}")
+
+    # 4) 객체별(클래스별) AP50 출력
     id_to_cat = {0: 'pedestrian', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
                 5: 'bus', 6: 'truck', 7: 'traffic light', 8: 'traffic sign', 9: 'train'}
 
