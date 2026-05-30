@@ -148,15 +148,29 @@ def main():
     print(f"  - mAR_L (Large)        : {results['mar_large'].item():.4f}")
 
     # 4) 객체별(클래스별) AP50 출력
+    # test.py 파일 하단의 3) 객체별(클래스별) AP50 출력부 전체 교체
     id_to_cat = {0: 'pedestrian', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
                 5: 'bus', 6: 'truck', 7: 'traffic light', 8: 'traffic sign', 9: 'train'}
 
     print("\n● Per-Class AP50:")
-    per_class_ap = results['map_per_class']
-    for class_id, ap_value in enumerate(per_class_ap):
+    
+    # 10개 클래스 전체를 -1.0(No Ground Truth) 상태로 초기화
+    class_ap_dict = {i: -1.0 for i in range(num_classes)}
+
+    # torchmetrics 공식 가이드라인에 맞춰 classes 텐서와 map_per_class 텐서를 완벽하게 매핑
+    if 'map_per_class' in results and 'classes' in results:
+        for class_id_tensor, ap_tensor in zip(results['classes'], results['map_per_class']):
+            actual_class_id = int(class_id_tensor.item())
+            if actual_class_id < num_classes:
+                class_ap_dict[actual_class_id] = ap_tensor.item()
+
+    # 약속된 고정 순서(0번~9번)대로 화면에 오차 없이 출력
+    for class_id in range(num_classes):
         class_name = id_to_cat.get(class_id, f"Class_{class_id}")
+        ap_value = class_ap_dict[class_id]
+        
         if ap_value >= 0:
-            print(f"  - {class_name:15s}: {ap_value.item():.4f}")
+            print(f"  - {class_name:15s}: {ap_value:.4f}")
         else:
             print(f"  - {class_name:15s}: No Ground Truth")
     print("="*40)

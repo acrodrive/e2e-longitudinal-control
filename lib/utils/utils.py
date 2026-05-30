@@ -149,7 +149,9 @@ def post_process(pred_hms, pred_regs, strides, threshold=0.05, top_k=100):
         
         # 4. 벡터화된 좌표 디코딩[cite: 8]
         # reg_candidates: (w, h, ox, oy)
-        w, h = reg_candidates[..., 0] * stride, reg_candidates[..., 1] * stride
+        # reg_candidates[..., 0]과 [..., 1]에 torch.clamp를 적용하여 음수 방지
+        w = torch.clamp(reg_candidates[..., 0], min=1e-3) * stride
+        h = torch.clamp(reg_candidates[..., 1], min=1e-3) * stride
         cx = (xs + reg_candidates[..., 2]) * stride
         cy = (ys + reg_candidates[..., 3]) * stride
         
