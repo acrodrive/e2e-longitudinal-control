@@ -89,7 +89,7 @@ def train_one_epoch(backbone, head, loader, criterion, optimizer, scheduler, sca
         epoch_loss += tot_loss.item()
         
         if not torch.isfinite(tot_loss):
-            print("loss_anomaly": 1, "step": epoch * len(loader) + i)
+            print("loss_anomaly: 1, step: ", epoch * len(loader) + i)
             wandb.log({"loss_anomaly": 1, "step": epoch * len(loader) + i})
 
         if i % 10 == 0:

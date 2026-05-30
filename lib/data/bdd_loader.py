@@ -17,7 +17,7 @@ class BDDDataset(Dataset):
         self.mode = mode # 'train', 'val' or 'test'
         
         self.cat_to_id = {
-            'pedestrian': 0, 'rider': 1, 'bike': 2, 'motor': 3,
+            'person': 0, 'rider': 1, 'bike': 2, 'motor': 3,
             'car': 4, 'bus': 5, 'truck': 6, 
             'traffic light': 7, 'traffic sign': 8,
             'train': 9
@@ -183,7 +183,7 @@ class BDDDataset(Dataset):
                     w_raw, h_raw = w_norm * W, h_norm * H
                     obj_size = np.sqrt(w_raw * h_raw)
 
-                    print(f"{current_range[0]} <= {obj_size} < {current_range[1]}")
+                    #print(f"{current_range[0]} <= {obj_size} < {current_range[1]}")
                     
                     # 현재 스트라이드(레벨)가 담당할 크기인지 확인
                     if not (current_range[0] <= obj_size < current_range[1]):

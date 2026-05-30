@@ -57,14 +57,6 @@ def main():
     backbone = ResNetFPN(out_channels=fpn_out_channels).to(device)
     head = DetectionHead(num_classes=num_classes).to(device)
     
-    # COMPILE TO ACCELERATE
-    if is_cuda:
-        try:
-            backbone = torch.compile(backbone)
-            head = torch.compile(head)
-            print("=> Model compilation enabled.")
-        except Exception as e:
-            print(f"=> Compilation failed, proceeding without it: {e}")
 
     # LOSS
     criterion = MultiLevelDetectionLoss().to(device)
@@ -93,6 +85,16 @@ def main():
     
     # LOAD WEIGHTS
     start_epoch = load_model_weights(backbone, head, optimizer, scaler, CHECKPOINT_PATH)
+
+    # COMPILE TO ACCELERATE
+    if is_cuda:
+        try:
+            backbone = torch.compile(backbone)
+            head = torch.compile(head)
+            print("=> Model compilation enabled.")
+        except Exception as e:
+            print(f"=> Compilation failed, proceeding without it: {e}")
+
 
     # LOAD DATASET
     train_transform = get_train_transforms(bbox_format=Config.bbox_format)

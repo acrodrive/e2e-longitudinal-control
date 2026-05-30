@@ -6,7 +6,7 @@ class Config:
     batch_size = 16
     lr = 5e-4
     weight_decay = 1e-4 # 학습이 진행되고 나면 1e-3나 5e-4로 높이기
-    epochs = 20
+    epochs = 5
     mAP_threshold = 0.001
 
     fpn_out_channels = 256

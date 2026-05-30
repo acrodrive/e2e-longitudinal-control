@@ -149,7 +149,7 @@ def main():
 
     # 4) 객체별(클래스별) AP50 출력
     # test.py 파일 하단의 3) 객체별(클래스별) AP50 출력부 전체 교체
-    id_to_cat = {0: 'pedestrian', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
+    id_to_cat = {0: 'person', 1: 'rider', 2: 'bike', 3: 'motor', 4: 'car', 
                 5: 'bus', 6: 'truck', 7: 'traffic light', 8: 'traffic sign', 9: 'train'}
 
     print("\n● Per-Class AP50:")
